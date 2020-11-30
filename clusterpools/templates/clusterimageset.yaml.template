@@ -1,0 +1,6 @@
+apiVersion: hive.openshift.io/v1
+kind: ClusterImageSet
+metadata:
+ name: __CLUSTERIMAGESET_NAME__
+spec:
+ releaseImage: __CLUSTERIMAGESET_RELEASE_IMAGE__

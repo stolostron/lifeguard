@@ -1,0 +1,18 @@
+apiVersion: hive.openshift.io/v1
+kind: ClusterPool
+metadata:
+  name: __CLUSTERPOOL_NAME__
+  namespace: __TARGET_NAMESPACE__
+spec:
+  baseDomain: __CLUSTERPOOL_AZURE_BASE_DOMAIN__
+  imageSetRef:
+    name: __CLUSTERIMAGESET_NAME__
+  size: __CLUSTERPOOL_SIZE__
+  pullSecretRef:
+    name: __OCP_PULL_SECRET__
+  platform:
+    azure:
+      baseDomainResourceGroupName: __CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME__
+      credentialsSecretRef:
+        name: __CLOUD_CREDENTIAL_SECRET__
+      region: __CLUSTERPOOL_AZURE_REGION__
