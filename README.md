@@ -19,7 +19,23 @@ To create your first ClusterPool:
 
 You may also consider defining a series of environment variables to "fully automate" the creation of additional cluterpools once you have one clusterpool under your belt.  The prompts in `start.sh` will note which environment variable can be defined to skip a given set, but here's a full list for convenience:
 ```
-
+TARGET_NAMESPACE - namespace you want to create/destroy a clusterpool in
+PLATFORM - cloud platform you wish to use, must be one of: AWS, AZURE, GCP
+CLOUD_CREDENTIAL_SECRET - name of the secret to be used to access your cloud platform
+OCP_PULL_SECRET - name of the secret containing your OCP pull secret
+CLUSTERIMAGESET_NAME - name of the clusterimageset you wish to use for your clusterpool
+CLUSTERPOOL_SIZE - "size" of your clusterpool/number of "ready" clusters in your pool
+CLUSTERPOOL_NAME - your chosen name for the clusterpool
+# AWS Specific
+CLUSTERPOOL_AWS_REGION - aws region to use for your clusterpool
+CLUSTERPOOL_AWS_BASE_DOMAIN - aws base domain to use for your clusterpool
+# Azure Specific
+CLUSTERPOOL_AZURE_REGION - azure region to use for your clusterpool
+CLUSTERPOOL_AZURE_BASE_DOMAIN - azure base domain to use for your clusterpool
+CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME - name of the resource group containing your azure base domain dns zone
+# GCP Specific
+CLUSTERPOOL_GCP_REGION - gcp region to use for your clusterpool
+CLUSTERPOOL_GCP_BASE_DOMAIN - gcp base domain to use for your clusterpool
 ```
 **Note:** If you find that the above list does not fully automate clusterpool creation, then we made a mistake or need to update the list!  Please let us know via a GitHub issue or contribute a patch! 
 
