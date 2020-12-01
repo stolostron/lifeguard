@@ -6,6 +6,10 @@ Welcome to the Open Cluster Management _Lifeguard_ project.  _Lifeguard_ provide
 
 *This project is still a work in progress, so there may still be gaps in logic, especially around "retry" on failed operations/user selections, we're working on patching these as we're able, and we're open to contribution!*
 
+## Global Configuration
+
+If you don't want colorized output or are using automation/a shell that can't show bash colorization, `export COLOR=False` for non-colorized output.  
+
 ## ClusterPools
 
 The [ClusterPool submodule of this project](/clusterpools) provides an "easy way" to create your first ClusterPool on a target cluster.  
