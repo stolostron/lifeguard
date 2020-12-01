@@ -465,10 +465,10 @@ printf "${GREEN}* Using Size: $CLUSTERPOOL_SIZE${CLEAR}\n"
 #----GET THE CLUSTERPOOL'S NAME----#
 if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_NAME${CLEAR}\n"
-    printf "${YELLOW}What would you like to name your ClusterPool  Press enter or export CLUSTERPOOL_NAME="" to use our generated name ($GENERATED_CLUSTERPOOL_NAME-$CLUSTERIMAGESET_NAME)?${CLEAR} "
+    printf "${YELLOW}What would you like to name your ClusterPool? Press enter or export CLUSTERPOOL_NAME="" to use our generated name ($GENERATED_CLUSTERPOOL_NAME-$(echo $PLATFORM | tr '[:upper:]' '[:lower:]')-$(echo $CLUSTERIMAGESET_NAME | sed 's/\.//g'))?${CLEAR} "
     read INPUT_CLUSTERPOOL_NAME
     if [[ "$INPUT_CLUSTERPOOL_NAME" == "" ]]; then
-        CLUSTERPOOL_NAME="$GENERATED_CLUSTERPOOL_NAME-$(echo $PLATFORM | tr '[:upper:]' '[:lower:]')-$CLUSTERIMAGESET_NAME"
+        CLUSTERPOOL_NAME="$GENERATED_CLUSTERPOOL_NAME-$(echo $PLATFORM | tr '[:upper:]' '[:lower:]')-$(echo $CLUSTERIMAGESET_NAME | sed 's/\.//g')"
     else
         CLUSTERPOOL_NAME="$INPUT_CLUSTERPOOL_NAME"
     fi
