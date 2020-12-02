@@ -13,6 +13,7 @@ if [[ "$COLOR" == "False" || "$COLOR" == "false" ]]; then
     YELLOW='\e[39m'
 fi
 
+
 # Fix sed issues on mac by using GSED and fix base64 issues on macos by omitting the -w 0 parameter
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 SED="sed"
@@ -26,6 +27,7 @@ if [ "${OS}" == "darwin" ]; then
     fi
     BASE64="base64"
 fi
+
 
 #----VALIDATE PREREQ----#
 # User needs to be logged into the cluster
@@ -41,11 +43,12 @@ printf "${BLUE}* Using baseDomain: ${HOST_URL}${CLEAR}\n"
 VER=`oc version | grep "Server Version:"`
 printf "${BLUE}* ${VER}${CLEAR}\n"
 
+
 #----SELECT A NAMESPACE----#
 if [[ "$TARGET_NAMESPACE" == "" ]]; then
     # Prompt the user to enter a namespace name and validate their choice
     printf "${BLUE}- note: to skip this step in the future, export TARGET_NAMESPACE${CLEAR}\n"
-    printf "${YELLOW}What namespace holds the clusterpool you want to delete?${CLEAR} "
+    printf "${YELLOW}What namespace holds your clusterclaim?${CLEAR} "
     read TARGET_NAMESPACE
 fi
 oc get ns ${TARGET_NAMESPACE} --no-headers &> /dev/null
@@ -55,66 +58,67 @@ if [[ $? -ne 0 ]]; then
 fi
 printf "${GREEN}* Using $TARGET_NAMESPACE\n${CLEAR}"
 
-#----SELECT A CLUSTERPOOL TO DELETE----#
-if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
+
+#----SELECT A CLUSTERCLAIM TO EXTRACT CREDENTIALS FROM----#
+if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
     # Prompt the user to choose a ClusterImageSet
-    clusterpools=$(oc get clusterpools -n ${TARGET_NAMESPACE})
-    clusterpool_names=()
+    clusterclaims=$(oc get clusterclaim -n ${TARGET_NAMESPACE})
+    clusterclaim_names=()
     i=0
     IFS=$'\n'
-    for line in $clusterpools; do
+    for line in $clusterclaims; do
         if [ $i -eq 0 ]; then
             printf "   \t$line\n"
         else
             printf "($i)\t$line\n"
             unset IFS
             line_list=($line)
-            clusterpool_names+=(${line_list[0]})
+            clusterclaim_names+=(${line_list[0]})
             IFS=$'\n'
         fi
         i=$((i+1))
     done;
+    if [[ "$i" -lt 1 ]]; then
+        printf "${RED}No ClusterClaims found in the ${TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${TARGET_NAMESPACE} has ClusterClaims with 'oc get clusterclaim -n $TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        exit 3
+    fi
     unset IFS
-    printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_NAME${CLEAR}\n"
-    printf "${YELLOW}Enter the number cooresponding to your desired ClusterPool from the list above:${CLEAR} "
+    printf "${BLUE}- note: to skip this step in the future, export CLUSTERCLAIM_NAME${CLEAR}\n"
+    printf "${YELLOW}Enter the number cooresponding to ClusterClaim you want to delete:${CLEAR} "
     read selection
     if [ "$selection" -lt "$i" ]; then
-        CLUSTERPOOL_NAME=${clusterpool_names[$(($selection-1))]}
+        CLUSTERCLAIM_NAME=${clusterclaim_names[$(($selection-1))]}
     else
         printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 else
-    oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
+    oc get clusterclaim ${CLUSTERCLAIM_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+        printf "${RED}Couldn't find a ClusterClaim named ${CLUSTERCLAIM_NAME} on ${HOST_URL} in the ${TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterclaim -n ${TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
-printf "${GREEN}* Using: $CLUSTERPOOL_NAME${CLEAR}\n"
+printf "${GREEN}* Using: $CLUSTERCLAIM_NAME${CLEAR}\n"
 
-#-----INFORM THE USER WHICH CLUSTERCLAIMS WOULD BE ORPHANED (WITHIN TARGET_NAMESPACE)-----#
-clusterclaims=$(oc get clusterclaim -n $TARGET_NAMESPACE -o json | jq --arg CLUSTERPOOLNAME "$CLUSTERPOOL_NAME" '.items[] | select(.spec.clusterPoolName==$CLUSTERPOOLNAME) | .metadata.name')
-if [[ "$clusterclaims" != "" ]]; then
-    printf "${YELLOW}The following ClusterClaims and their associated deployments will be orphaned if you delete $CLUSTERPOOL_NAME.${CLEAR}\n"
-    i=1
-    IFS=$'\n'
-    for line in $clusterclaims; do
-        printf "${YELLOW}($i)\t$line${CLEAR}\n"
-    done;
-    unset IFS
-    printf "${BLUE}Note: these ClusterClaims and their related ClusterDeployments won't be cleaned up when you delete $CLUSTERPOOL_NAME and will stay live until you delete the ClusterClaim objects.${CLEAR}\n"
+
+#-----VERIFY INTENT AND DELETE CLUSTERCLAIM-----#
+CC_JSON=$CLUSTERCLAIM_NAME/.ClusterClaim.json
+oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${TARGET_NAMESPACE} -o json > $CC_JSON
+clusterdeployment=`jq -r '.spec.namespace' $CC_JSON`
+if [[ "$CC_NS" != "null" ]]; then
+    printf "${YELLOW}Deleting $CLUSTERCLAIM_NAME will destroy the cluster ${BLUE}$clusterdeployment${YELLOW}.${CLEAR}\n"
 fi
-printf "${YELLOW}Do you want to proceed and delete the ClusterPool: ${CLUSTERPOOL_NAME}? (Y/N) ${CLEAR}"
+printf "${YELLOW}Do you want to proceed and delete the ClusterClaim: ${CLUSTERCLAIM_NAME}? (Y/N) ${CLEAR}"
 read selection
 if [[ ! ("$selection" == "Y" || "$selection" == "y") ]]; then
     printf "${GREEN} Deletion cancelled, exiting.${CLEAR}\n"
     exit 0
 else
-    oc delete clusterpool -n $TARGET_NAMESPACE $CLUSTERPOOL_NAME
+    oc delete clusterclaim -n $TARGET_NAMESPACE $CLUSTERCLAIM_NAME
     if [[ "$?" -ne 0 ]]; then
-        printf "${RED}Failed to delete ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
+        printf "${RED}Failed to delete ClusterClaim $CLUSTERCLAIM_NAME, see above error message for more detail.${CLEAR}\n"
         exit 3
     fi
 fi
-printf "${GREEN}ClusterPool ${CLUSTERPOOL_NAME} successfully deleted.${CLEAR}\n"
+printf "${GREEN}ClusterClaim ${CLUSTERCLAIM_NAME} successfully deleted.${CLEAR}\n"
