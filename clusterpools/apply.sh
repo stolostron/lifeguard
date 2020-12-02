@@ -199,14 +199,14 @@ fi
 #----VALIDATE PREREQ----#
 # User needs to be logged into the cluster
 printf "${BLUE}* Testing connection${CLEAR}\n"
-HOST_URL=`oc -n openshift-console get routes console -o jsonpath='{.status.ingress[0].routerCanonicalHostname}'`
+HOST_URL=$(oc status | grep -o "https.*api.*")
 if [ $? -ne 0 ]; then
     printf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
     exit 2
 fi
 # Shorten to the basedomain and tell the user which cluster we're targetting
 HOST_URL=${HOST_URL/apps./}
-printf "${BLUE}* Using baseDomain: ${HOST_URL}${CLEAR}\n"
+printf "${BLUE}* Using cluster: ${HOST_URL}${CLEAR}\n"
 VER=`oc version | grep "Server Version:"`
 printf "${BLUE}* ${VER}${CLEAR}\n"
 
@@ -225,9 +225,9 @@ if [[ "$TARGET_NAMESPACE" == "" ]]; then
     printf "${YELLOW}What namespace do you want to use for ClusterPools?${CLEAR} "
     read TARGET_NAMESPACE
 fi
-oc get ns ${TARGET_NAMESPACE} --no-headers &> /dev/null
+oc get projects ${TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get ns' and try again.${CLEAR}\n"
+    printf "${RED}Couldn't find a namespace named ${TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}* Using $TARGET_NAMESPACE\n${CLEAR}"
@@ -243,7 +243,7 @@ if [[ "$PLATFORM" == "" ]]; then
         i=$((i+1))
     done
     printf "${BLUE}- note: to skip this step in the future, export PLATFORM=<AWS, AZURE, GCP>${CLEAR}\n"
-    printf "${YELLOW}Enter the number cooresponding to your desired Cloud Platform from the list above:${CLEAR} "
+    printf "${YELLOW}Enter the number corresponding to your desired Cloud Platform from the list above:${CLEAR} "
     read selection
     if [ $selection -ge $((i+1)) ]; then
         printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
@@ -287,7 +287,7 @@ if [[ "$CLOUD_CREDENTIAL_SECRET" == "" ]]; then
     new=$i
     printf "($i)\tCreate a new Secret.\n"
     printf "${BLUE}- note: to skip this step in the future, export CLOUD_CREDENTIAL_SECRET${CLEAR}\n"
-    printf "${YELLOW}Enter the number cooresponding to your desired Secret from the list above:${CLEAR} "
+    printf "${YELLOW}Enter the number corresponding to your desired Cloud Platform credential Secret from the list above:${CLEAR} "
     read selection
     if [ "$selection" -lt "$new" ]; then
         CLOUD_CREDENTIAL_SECRET=${secret_names[$(($selection-1))]}
@@ -339,7 +339,7 @@ if [[ "$OCP_PULL_SECRET" == "" ]]; then
     new=$i
     printf "($i)\tCreate a new Secret.\n"
     printf "${BLUE}- note: to skip this step in the future, export OCP_PULL_SECRET${CLEAR}\n"
-    printf "${YELLOW}Enter the number cooresponding to your desired Secret from the list above:${CLEAR} "
+    printf "${YELLOW}Enter the number corresponding to your desired OCP Pull Secret from the list above:${CLEAR} "
     read selection
     if [ "$selection" -lt "$new" ]; then
         OCP_PULL_SECRET=${secret_names[$(($selection-1))]}
@@ -382,7 +382,7 @@ if [[ "$CLUSTERIMAGESET_NAME" == "" ]]; then
     new=$i
     printf "($i)\tCreate a new ClusterImageSet.\n"
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERIMAGESET_NAME${CLEAR}\n"
-    printf "${YELLOW}Enter the number cooresponding to your desired ClusterImageSet from the list above:${CLEAR} "
+    printf "${YELLOW}Enter the number corresponding to your desired ClusterImageSet from the list above:${CLEAR} "
     read selection
     if [ "$selection" -lt "$new" ]; then
         CLUSTERIMAGESET_NAME=${clusterimageset_names[$(($selection-1))]}

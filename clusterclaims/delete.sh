@@ -32,14 +32,14 @@ fi
 #----VALIDATE PREREQ----#
 # User needs to be logged into the cluster
 printf "${BLUE}* Testing connection${CLEAR}\n"
-HOST_URL=`oc -n openshift-console get routes console -o jsonpath='{.status.ingress[0].routerCanonicalHostname}'`
+HOST_URL=$(oc status | grep -o "https.*api.*")
 if [ $? -ne 0 ]; then
     printf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
     exit 2
 fi
 # Shorten to the basedomain and tell the user which cluster we're targetting
 HOST_URL=${HOST_URL/apps./}
-printf "${BLUE}* Using baseDomain: ${HOST_URL}${CLEAR}\n"
+printf "${BLUE}* Using cluster: ${HOST_URL}${CLEAR}\n"
 VER=`oc version | grep "Server Version:"`
 printf "${BLUE}* ${VER}${CLEAR}\n"
 
@@ -51,9 +51,9 @@ if [[ "$TARGET_NAMESPACE" == "" ]]; then
     printf "${YELLOW}What namespace holds your clusterclaim?${CLEAR} "
     read TARGET_NAMESPACE
 fi
-oc get ns ${TARGET_NAMESPACE} --no-headers &> /dev/null
+oc get projects ${TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get ns' and try again.${CLEAR}\n"
+    printf "${RED}Couldn't find a namespace named ${TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}* Using $TARGET_NAMESPACE\n${CLEAR}"
@@ -84,7 +84,7 @@ if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
     fi
     unset IFS
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERCLAIM_NAME${CLEAR}\n"
-    printf "${YELLOW}Enter the number cooresponding to ClusterClaim you want to delete:${CLEAR} "
+    printf "${YELLOW}Enter the number corresponding to ClusterClaim you want to delete:${CLEAR} "
     read selection
     if [ "$selection" -lt "$i" ]; then
         CLUSTERCLAIM_NAME=${clusterclaim_names[$(($selection-1))]}
