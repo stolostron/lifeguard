@@ -51,6 +51,8 @@ To delete a ClusterPool:
 2. `cd clusterpools` and run `delete.sh` (named for the `oc` command it will leverage)
 3. Follow the prompts, the script will guide you through the location and deletion of your ClusterPool
 
+## ClusterClaims
+
 ### Claiming a Cluster from a ClusterPool (Creating a ClusterClaim)
 
 To claim a cluster from a ClusterPool:
