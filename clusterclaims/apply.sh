@@ -150,9 +150,39 @@ ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
 
 
 #-----OPTIONALLY SELECT AN RBAC GROUP-----#
+printf  "${BLUE}- note: if you choose 'Y', you must have read permissions on group.user.openshift.io.${CLEAR}\n"
 printf "${YELLOW}Do you want to associate this ClusterClaim with an RBAC Group? (Y/N) ${CLEAR}"
 read selection
 if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
+    if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
+        # Prompt the user to choose a project
+        groups=$(oc get group -o=custom-columns=NAME:.metadata.name)
+        group_names=()
+        i=0
+        IFS=$'\n'
+        for line in $groups; do
+            if [ $i -eq 0 ]; then
+                printf "   \t$line\n"
+            else
+                printf "($i)\t$line\n"
+                unset IFS
+                line_list=($line)
+                group_names+=(${line_list[0]})
+                IFS=$'\n'
+            fi
+            i=$((i+1))
+        done;
+        unset IFS
+        printf "${BLUE}- note: to skip this step in the future, export CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
+        printf "${YELLOW}Enter the number corresponding to your desired group from the list above:${CLEAR} "
+        read selection
+        if [ "$selection" -lt "$i" ]; then
+            CLUSTERCLAIM_GROUP_NAME=${group_names[$(($selection-1))]}
+        else
+            printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+            exit 3
+        fi
+    fi
     if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
         printf "${YELLOW}What RBAC group would you like to use as the 'Subject' for this ClusterClaim (ex. a GitHub team name when group sync is in use, like CICD)?${CLEAR} "
         read CLUSTERCLAIM_GROUP_NAME
