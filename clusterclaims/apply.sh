@@ -48,10 +48,33 @@ printf "${BLUE}* ${VER}${CLEAR}\n"
 
 #----SELECT A NAMESPACE----#
 if [[ "$TARGET_NAMESPACE" == "" ]]; then
-    # Prompt the user to enter a namespace name and validate their choice
+    # Prompt the user to choose a project
+    projects=$(oc get project -o custom-columns=NAME:.metadata.name,STATUS:.status.phase)
+    project_names=()
+    i=0
+    IFS=$'\n'
+    for line in $projects; do
+        if [ $i -eq 0 ]; then
+            printf "   \t$line\n"
+        else
+            printf "($i)\t$line\n"
+            unset IFS
+            line_list=($line)
+            project_names+=(${line_list[0]})
+            IFS=$'\n'
+        fi
+        i=$((i+1))
+    done;
+    unset IFS
     printf "${BLUE}- note: to skip this step in the future, export TARGET_NAMESPACE${CLEAR}\n"
-    printf "${YELLOW}What namespace holds your clusterpools?  Your ClusterClaim will also be created in this namespace.${CLEAR} "
-    read TARGET_NAMESPACE
+    printf "${YELLOW}Enter the number corresponding to your desired Project/Namespace from the list above:${CLEAR} "
+    read selection
+    if [ "$selection" -lt "$i" ]; then
+        TARGET_NAMESPACE=${project_names[$(($selection-1))]}
+    else
+        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        exit 3
+    fi
 fi
 oc get projects ${TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
@@ -163,6 +186,14 @@ fi
 printf "* ${GREEN}ClusterClaim ${CLUSTERCLAIM_NAME} on ${CLUSTERPOOL_NAME} successfully created, polling ${POLL_DURATION} seconds for claim to be fulfilled and cluster to become ready.\n${CLEAR}"
 
 
+#-----EXIT IF THE USER REQUESTED TO SKIP WAIT-----#
+if [[ "$SKIP_WAIT_AND_CREDENTIALS" == "true" || "$SKIP_WAIT_AND_CREDENTIALS" == "True" ]]; then
+    printf "${BLUE}Skipping status polling and credential extraction.  To extract cluster credentials, run './get_credentials.sh' once the cluster is ready.${CLEAR}\n"
+    printf "${GREEN}ClusterClaim ${CLUSTERCLAIM_NAME} created.${CLEAR}\n"
+    exit 0
+fi
+
+
 #-----POLLING FOR CLAIM FULFILLMENT AND CLUSTER UNHIBERNATE-----#
 # TODO: Eliminate the code duplication before this while loop by using a better looping construct
 #       Alas nothing is coming to mind at the moment.  
@@ -238,22 +269,21 @@ api_url=`jq -r '.status.apiURL' $CD_JSON`
 console_url=`jq -r '.status.webConsoleURL' $CD_JSON`
 printf "${BLUE}\
 {
-  \"username\": \"$username\",
-  \"password\": \"REDACTED\",
-  \"basedomain\": \"$basedomain\",
-  \"api_url\": \"$api_url\",
-  \"console_url\": \"$console_url\"
+\"username\": \"$username\",
+\"password\": \"REDACTED\",
+\"basedomain\": \"$basedomain\",
+\"api_url\": \"$api_url\",
+\"console_url\": \"$console_url\"
 }${CLEAR}\n"
 echo "{
-  \"username\": \"$username\",
-  \"password\": \"$password\",
-  \"basedomain\": \"$basedomain\",
-  \"api_url\": \"$api_url\",
-  \"console_url\": \"$console_url\"
+\"username\": \"$username\",
+\"password\": \"$password\",
+\"basedomain\": \"$basedomain\",
+\"api_url\": \"$api_url\",
+\"console_url\": \"$console_url\"
 }" > $CLUSTERCLAIM_NAME/$CLUSTERCLAIM_NAME.creds.json
 echo $password > $CLUSTERCLAIM_NAME/kubeadmin-password
 oc get secret -n $CC_NS $kubeconfig_secret -o json | jq -r '.data.kubeconfig' | base64 -d > $CLUSTERCLAIM_NAME/kubeconfig
 echo "#!/bin/bash
 oc login $api_url -u $username -p $password --insecure-skip-tls-verify=true" > $CLUSTERCLAIM_NAME/oc-login.sh
-
 printf "${GREEN}Cluster credentials extracted for ${CC_NS}.  You can find full credentials in '$PWD/$CLUSTERCLAIM_NAME'.${CLEAR}\n"

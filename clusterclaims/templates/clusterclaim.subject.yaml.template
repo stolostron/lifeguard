@@ -1,4 +1,4 @@
   subjects:
   - apiGroup: rbac.authorization.k8s.io
     kind: Group
-    name: “__RBAC_GROUP_NAME__"
+    name: '__RBAC_GROUP_NAME__'
