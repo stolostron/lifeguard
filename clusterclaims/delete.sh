@@ -46,10 +46,33 @@ printf "${BLUE}* ${VER}${CLEAR}\n"
 
 #----SELECT A NAMESPACE----#
 if [[ "$TARGET_NAMESPACE" == "" ]]; then
-    # Prompt the user to enter a namespace name and validate their choice
+    # Prompt the user to choose a project
+    projects=$(oc get project -o custom-columns=NAME:.metadata.name,STATUS:.status.phase)
+    project_names=()
+    i=0
+    IFS=$'\n'
+    for line in $projects; do
+        if [ $i -eq 0 ]; then
+            printf "   \t$line\n"
+        else
+            printf "($i)\t$line\n"
+            unset IFS
+            line_list=($line)
+            project_names+=(${line_list[0]})
+            IFS=$'\n'
+        fi
+        i=$((i+1))
+    done;
+    unset IFS
     printf "${BLUE}- note: to skip this step in the future, export TARGET_NAMESPACE${CLEAR}\n"
-    printf "${YELLOW}What namespace holds your clusterclaim?${CLEAR} "
-    read TARGET_NAMESPACE
+    printf "${YELLOW}Enter the number corresponding to your desired Project/Namespace from the list above:${CLEAR} "
+    read selection
+    if [ "$selection" -lt "$i" ]; then
+        TARGET_NAMESPACE=${project_names[$(($selection-1))]}
+    else
+        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        exit 3
+    fi
 fi
 oc get projects ${TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
