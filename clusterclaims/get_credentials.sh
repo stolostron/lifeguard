@@ -125,6 +125,12 @@ fi
 printf "${GREEN}* Using: $CLUSTERCLAIM_NAME${CLEAR}\n"
 
 
+#-----SET UP OUR WORKING DIRECTORY-----#
+if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
+    mkdir ./$CLUSTERCLAIM_NAME
+fi
+
+
 #-----POLLING FOR CLAIM FULFILLMENT AND CLUSTER UNHIBERNATE-----#
 # TODO: Eliminate the code duplication before this while loop by using a better looping construct
 #       Alas nothing is coming to mind at the moment.  
