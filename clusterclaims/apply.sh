@@ -140,21 +140,47 @@ fi
 printf "${GREEN}* Using: $CLUSTERCLAIM_NAME${CLEAR}\n"
 
 
+#-----OPTIONALLY SET A LIFETIME-----#
+if [[ "$CLUSTERCLAIM_LIFETIME" == "" ]]; then
+    printf "${YELLOW}Do you want to set a lifetime for this claim?  The claim will expire (automatically delete) after the lifetime passes. (Y/N) ${CLEAR}"
+    read selection
+    if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
+        printf "${BLUE}- note: to skip this step in the future, export CLUSTERCLAIM_LIFETIME=<number-of-hours>h${CLEAR}\n"
+        printf "${YELLOW}How long would you like your claim to live in hours (enter a number)? ${CLEAR} "
+        read selection
+        if [ "$selection" != "" ]; then
+            CLUSTERCLAIM_LIFETIME="${selection}h"
+        else
+            printf "${RED}Empty lifetime entered. Exiting.\n${CLEAR}"
+            exit 3
+        fi
+        printf "${GREEN}* Using Lifetime: $CLUSTERCLAIM_LIFETIME${CLEAR}\n"
+    fi
+fi
+
+
 #-----GENERATE THE INITIAL YAML-----#
 if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
     mkdir ./$CLUSTERCLAIM_NAME
 fi
-${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
-        -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
-        -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+if [[ "$CLUSTERCLAIM_LIFETIME" == "" ]]; then
+    ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
+            -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
+            -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.nolifetime.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+else
+    ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
+            -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
+            -e "s/__CLUSTERCLAIM_LIFETIME__/$CLUSTERCLAIM_LIFETIME/g" \
+            -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.lifetime.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+fi
 
 
 #-----OPTIONALLY SELECT AN RBAC GROUP-----#
-printf  "${BLUE}- note: if you choose 'Y', you must have read permissions on group.user.openshift.io.${CLEAR}\n"
-printf "${YELLOW}Do you want to associate this ClusterClaim with an RBAC Group? (Y/N) ${CLEAR}"
-read selection
-if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
-    if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
+if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
+    printf  "${BLUE}- note: if you choose 'Y', you must have read permissions on group.user.openshift.io.${CLEAR}\n"
+    printf "${YELLOW}Do you want to associate this ClusterClaim with an RBAC Group? (Y/N) ${CLEAR}"
+    read selection
+    if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
         # Prompt the user to choose a project
         groups=$(oc get group -o=custom-columns=NAME:.metadata.name)
         group_names=()
@@ -182,11 +208,11 @@ if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
             printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
             exit 3
         fi
+        printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
+        echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     fi
-    if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
-        printf "${YELLOW}What RBAC group would you like to use as the 'Subject' for this ClusterClaim (ex. a GitHub team name when group sync is in use, like CICD)?${CLEAR} "
-        read CLUSTERCLAIM_GROUP_NAME
-    fi
+else
     printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
     echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
