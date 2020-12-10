@@ -429,8 +429,11 @@ printf "${GREEN}* Using: $CLUSTERIMAGESET_NAME${CLEAR}\n"
 if [[ "$PLATFORM" == "AWS" ]]; then
     if [[ "$CLUSTERPOOL_AWS_REGION" == "" ]]; then
         printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_AWS_REGION${CLEAR}\n"
-        printf "${YELLOW}Which AWS Region would you like to use to house your ClusterPool (ex. us-east-1)?${CLEAR} "
+        printf "${YELLOW}Enter the AWS Region would you like to use to house your ClusterPool or press enter to use our default (us-east-1):${CLEAR} "
         read CLUSTERPOOL_AWS_REGION
+        if [[ "$CLUSTERPOOL_AWS_REGION" == "" ]]; then
+            CLUSTERPOOL_AWS_REGION="us-east-1"
+        fi
     fi
     printf "${GREEN}* Using AWS Region ${CLUSTERPOOL_AWS_REGION}${CLEAR}\n"
     if [[ "$CLUSTERPOOL_AWS_BASE_DOMAIN" == "" ]]; then
@@ -442,8 +445,11 @@ if [[ "$PLATFORM" == "AWS" ]]; then
 elif [[ "$PLATFORM" == "AZURE" ]]; then
     if [[ "$CLUSTERPOOL_AZURE_REGION" == "" ]]; then
         printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_AZURE_REGION${CLEAR}\n"
-        printf "${YELLOW}Which Azure Region would you like to use to house your ClusterPool (ex. eastus)?${CLEAR} "
+        printf "${YELLOW}Enter the Azure Region would you like to use to house your ClusterPool or press enter to use our default (eastus):${CLEAR} "
         read CLUSTERPOOL_AZURE_REGION
+        if [[ "$CLUSTERPOOL_AZURE_REGION" == "" ]]; then
+            CLUSTERPOOL_AZURE_REGION="eastus"
+        fi
     fi
     printf "${GREEN}* Using Azure Region ${CLUSTERPOOL_AZURE_REGION}${CLEAR}\n"
     if [[ "$CLUSTERPOOL_AZURE_BASE_DOMAIN" == "" ]]; then
@@ -460,8 +466,11 @@ elif [[ "$PLATFORM" == "AZURE" ]]; then
 elif [[ "$PLATFORM" == "GCP" ]]; then
     if [[ "$CLUSTERPOOL_GCP_REGION" == "" ]]; then
         printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_GCP_REGION${CLEAR}\n"
-        printf "${YELLOW}Which GCP Region would you like to use to house your ClusterPool (ex. us-east1)?${CLEAR} "
+        printf "${YELLOW}Enter the GCP Region would you like to use to house your ClusterPool or press enter to use our default (us-east1):${CLEAR} "
         read CLUSTERPOOL_GCP_REGION
+        if [[ "$CLUSTERPOOL_GCP_REGION" == "" ]]; then
+            CLUSTERPOOL_GCP_REGION="us-east1"
+        fi
     fi
     printf "${GREEN}* Using GCP Region ${CLUSTERPOOL_GCP_REGION}${CLEAR}\n"
     if [[ "$CLUSTERPOOL_GCP_BASE_DOMAIN" == "" ]]; then
@@ -479,8 +488,11 @@ fi
 #----GET CLUSTERPOOL SIZE----#
 if [[ "$CLUSTERPOOL_SIZE" == "" ]]; then
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_SIZE${CLEAR}\n"
-    printf "${YELLOW}How many clusters would you like in your pool (note: this is the number of clusters the pool will keep live and waiting)?${CLEAR} "
+    printf "${YELLOW}Enter the number of clusters would you like in your pool (note: this is the number of clusters the pool will keep live and waiting) or press enter for default (1):${CLEAR} "
     read CLUSTERPOOL_SIZE
+    if [[ "$CLUSTERPOOL_SIZE" == "" ]]; then
+        CLUSTERPOOL_SIZE="1"
+    fi
 fi
 printf "${GREEN}* Using Size: $CLUSTERPOOL_SIZE${CLEAR}\n"
 
@@ -542,6 +554,7 @@ printf "${GREEN} Applying the following yaml to create your ClusterPool (./${CLU
 printf "${BLUE}"
 cat ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 printf "${CLEAR}\n"
+exit 0
 oc apply -f ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 if [[ "$?" -ne 0 ]]; then
     printf "${RED}Failed to create ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
