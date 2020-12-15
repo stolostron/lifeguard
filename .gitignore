@@ -1,2 +1,13 @@
+# System files
+*/.DS_STORE
+
+# Cluster files
+clusterpools/*/
+clusterclaims/*/
+!clusterpools/templates/
+!clusterclaims/templates/
+
+# Credential files
 */pull-secret.txt
 */pull-secret.*
+
