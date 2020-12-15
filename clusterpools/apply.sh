@@ -554,7 +554,6 @@ printf "${GREEN} Applying the following yaml to create your ClusterPool (./${CLU
 printf "${BLUE}"
 cat ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 printf "${CLEAR}\n"
-exit 0
 oc apply -f ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 if [[ "$?" -ne 0 ]]; then
     printf "${RED}Failed to create ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
