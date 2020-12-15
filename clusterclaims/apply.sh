@@ -108,7 +108,7 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
     fi
     unset IFS
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_NAME${CLEAR}\n"
-    printf "${YELLOW}Enter the number corresponding to ClusterPool you want to claim a cluter from:${CLEAR} "
+    printf "${YELLOW}Enter the number corresponding to ClusterPool you want to claim a cluster from:${CLEAR} "
     read selection
     if [ "$selection" -lt "$i" ]; then
         CLUSTERPOOL_NAME=${clusterpool_names[$(($selection-1))]}

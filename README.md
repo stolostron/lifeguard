@@ -21,7 +21,7 @@ To create your first ClusterPool:
 2. `cd clusterpools` and run `apply.sh` (named for the `oc` command it will leverage throughout)
 3. Follow the prompts, the script will guide you through all of the configuration, secret creation, and clusterpool creation.  
 
-You may also consider defining a series of environment variables to "fully automate" the creation of additional cluterpools once you have one clusterpool under your belt.  The prompts in `apply.sh` will note which environment variable can be defined to skip a given set, but here's a full list for convenience:
+You may also consider defining a series of environment variables to "fully automate" the creation of additional clusterpools once you have one clusterpool under your belt.  The prompts in `apply.sh` will note which environment variable can be defined to skip a given set, but here's a full list for convenience:
 ```
 TARGET_NAMESPACE - namespace you want to create/destroy a clusterpool in
 PLATFORM - cloud platform you wish to use, must be one of: AWS, AZURE, GCP
