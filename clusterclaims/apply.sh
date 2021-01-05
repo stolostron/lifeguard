@@ -163,7 +163,7 @@ fi
 if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
     mkdir ./$CLUSTERCLAIM_NAME
 fi
-if [[ "$CLUSTERCLAIM_LIFETIME" == "" ]]; then
+if [[ "$CLUSTERCLAIM_LIFETIME" == "" || "$CLUSTERCLAIM_LIFETIME" == "false" ]]; then
     ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
             -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
             -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.nolifetime.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
