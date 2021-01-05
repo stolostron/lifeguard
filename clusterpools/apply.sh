@@ -32,8 +32,8 @@ generate_aws_secret() {
         printf "${YELLOW}Enter your AWS Secret Access Key:${CLEAR} "
         read AWS_SECRET_ACCESS_KEY_UNENCODED
     fi
-    printf "${BLUE}Creating a new secret in the namespace ${TARGET_NAMESPACE} named ${SHORTNAME}-aws-creds to contain your AWS Credentials for Cluster Provisions.${CLEAR}\n"
-    oc create secret generic $SHORTNAME-aws-creds -n ${TARGET_NAMESPACE} --from-literal=aws_access_key_id=$AWS_ACCESS_KEY_ID_UNENCODED --from-literal=aws_secret_access_key=$AWS_SECRET_ACCESS_KEY_UNENCODED
+    printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-aws-creds to contain your AWS Credentials for Cluster Provisions.${CLEAR}\n"
+    oc create secret generic $SHORTNAME-aws-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-literal=aws_access_key_id=$AWS_ACCESS_KEY_ID_UNENCODED --from-literal=aws_secret_access_key=$AWS_SECRET_ACCESS_KEY_UNENCODED
     if [[ "$?" != "0" ]]; then
         printf "${RED}Unable to create AWS Credentials Secret. See above message for errors.  Exiting."
         exit 3
@@ -76,8 +76,8 @@ generate_azure_secret() {
         fi
         echo "{\"subscriptionId\":\"$AZURE_SUBSCRIPTION_ID\",\"clientId\":\"$AZURE_CLIENT_ID\",\"clientSecret\":\"$AZURE_CLIENT_SECRET\",\"tenantId\":\"$AZURE_TENANT_ID\"}" > $AZURE_SERVICE_PRINCIPLE_JSON
     fi
-    printf "${BLUE}Creating a new secret in the namespace ${TARGET_NAMESPACE} named ${SHORTNAME}-azure-creds to contain your Azure Credentials for Cluster Provisions.${CLEAR}\n"
-    oc create secret generic $SHORTNAME-azure-creds -n ${TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$AZURE_SERVICE_PRINCIPLE_JSON
+    printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-azure-creds to contain your Azure Credentials for Cluster Provisions.${CLEAR}\n"
+    oc create secret generic $SHORTNAME-azure-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$AZURE_SERVICE_PRINCIPLE_JSON
     if [[ "$?" != "0" ]]; then
         printf "${RED}Unable to create Azure Credentials Secret. See above message for errors.  Exiting."
         exit 3
@@ -110,8 +110,8 @@ generate_gcp_secret() {
         fi
         cp $GCP_SERVICE_ACCOUNT_JSON_ALT $GCP_SERVICE_ACCOUNT_JSON
     fi
-    printf "${BLUE}Creating a new secret in the namespace ${TARGET_NAMESPACE} named ${SHORTNAME}-gcp-creds to contain your GCP Credentials for Cluster Provisions.${CLEAR}\n"
-    oc create secret generic $SHORTNAME-gcp-creds -n ${TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$GCP_SERVICE_ACCOUNT_JSON
+    printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-gcp-creds to contain your GCP Credentials for Cluster Provisions.${CLEAR}\n"
+    oc create secret generic $SHORTNAME-gcp-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$GCP_SERVICE_ACCOUNT_JSON
     if [[ "$?" != "0" ]]; then
         printf "${RED}Unable to create GCP Credentials Secret. See above message for errors.  Exiting."
         exit 3
@@ -138,8 +138,8 @@ generate_openshift_pull_secret() {
         printf "${BLUE}Storing OCP Pull Secret in $OCP_PULL_SECRET for future reuse"
         cp $OCP_PULL_SECRET_INPUT $OCP_PULL_SECRET
     fi
-    printf "${BLUE}Creating a new secret in the namespace ${TARGET_NAMESPACE} named ${SHORTNAME}-ocp-pull-secret to contain your OCP Pull Secret for Cluster Provisions.${CLEAR}\n"
-    oc create secret generic ${SHORTNAME}-ocp-pull-secret --from-file=.dockerconfigjson=$OCP_PULL_SECRET --type=kubernetes.io/dockerconfigjson --namespace ${TARGET_NAMESPACE}
+    printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-ocp-pull-secret to contain your OCP Pull Secret for Cluster Provisions.${CLEAR}\n"
+    oc create secret generic ${SHORTNAME}-ocp-pull-secret --from-file=.dockerconfigjson=$OCP_PULL_SECRET --type=kubernetes.io/dockerconfigjson --namespace ${CLUSTERPOOL_TARGET_NAMESPACE}
     if [[ "$?" != "0" ]]; then
         printf "${RED}Unable to create OCP Pull Secret. See above message for errors.  Exiting."
         exit 3
@@ -219,7 +219,7 @@ SHORTNAME=$(echo $USER | head -c 8)
 GENERATED_CLUSTERPOOL_NAME="$SHORTNAME-$RANDOM_IDENTIFIER"
 
 #----SELECT A NAMESPACE----#
-if [[ "$TARGET_NAMESPACE" == "" ]]; then
+if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     # Prompt the user to choose a project
     projects=$(oc get project -o custom-columns=NAME:.metadata.name,STATUS:.status.phase)
     project_names=()
@@ -238,22 +238,22 @@ if [[ "$TARGET_NAMESPACE" == "" ]]; then
         i=$((i+1))
     done;
     unset IFS
-    printf "${BLUE}- note: to skip this step in the future, export TARGET_NAMESPACE${CLEAR}\n"
+    printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_TARGET_NAMESPACE${CLEAR}\n"
     printf "${YELLOW}Enter the number corresponding to your desired Project/Namespace from the list above:${CLEAR} "
     read selection
     if [ "$selection" -lt "$i" ]; then
-        TARGET_NAMESPACE=${project_names[$(($selection-1))]}
+        CLUSTERPOOL_TARGET_NAMESPACE=${project_names[$(($selection-1))]}
     else
         printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
-oc get projects ${TARGET_NAMESPACE} --no-headers &> /dev/null
+oc get projects ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
+    printf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
-printf "${GREEN}* Using $TARGET_NAMESPACE\n${CLEAR}"
+printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
 
 
 #----SELECT A cloud platform----#
@@ -290,7 +290,7 @@ printf "${GREEN}* Using $PLATFORM\n${CLEAR}"
 #----SELECT OR CREATE CLOUD CREDENTIALS----#
 if [[ "$CLOUD_CREDENTIAL_SECRET" == "" ]]; then
     # Prompt the user to choose a Cloud Credential Secret
-    secrets=$(oc get secrets -n $TARGET_NAMESPACE)
+    secrets=$(oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE)
     secret_names=()
     i=0
     IFS=$'\n'
@@ -332,7 +332,7 @@ if [[ "$CLOUD_CREDENTIAL_SECRET" == "" ]]; then
 else
     oc get secret ${CLOUD_CREDENTIAL_SECRET} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a secret named ${CLOUD_CREDENTIAL_SECRET} in the ${TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        printf "${RED}Couldn't find a secret named ${CLOUD_CREDENTIAL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -342,7 +342,7 @@ printf "${GREEN}* Using $CLOUD_CREDENTIAL_SECRET\n${CLEAR}"
 #----SELECT OR CREATE OCP PULL SECRET----#
 if [[ "$OCP_PULL_SECRET" == "" ]]; then
     # Prompt the user to choose an OCP Pull Secret
-    secrets=$(oc get secrets -n $TARGET_NAMESPACE)
+    secrets=$(oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE)
     secret_names=()
     i=0
     IFS=$'\n'
@@ -375,7 +375,7 @@ if [[ "$OCP_PULL_SECRET" == "" ]]; then
 else
     oc get secret ${OCP_PULL_SECRET} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a secret named ${OCP_PULL_SECRET} in the ${TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        printf "${RED}Couldn't find a secret named ${OCP_PULL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -518,7 +518,7 @@ if [[ ! -d ./${CLUSTERPOOL_NAME} ]]; then
 fi
 if [[ "$PLATFORM" == "AWS" ]]; then
     ${SED} -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" \
-           -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
+           -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
            -e "s/__CLUSTERPOOL_AWS_BASE_DOMAIN__/$CLUSTERPOOL_AWS_BASE_DOMAIN/g" \
            -e "s/__CLUSTERIMAGESET_NAME__/$CLUSTERIMAGESET_NAME/g" \
            -e "s/__CLUSTERPOOL_SIZE__/$CLUSTERPOOL_SIZE/g" \
@@ -527,7 +527,7 @@ if [[ "$PLATFORM" == "AWS" ]]; then
            -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" ./templates/clusterpool.aws.yaml.template > ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 elif [[ "$PLATFORM" == "AZURE" ]]; then
     ${SED} -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" \
-           -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
+           -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
            -e "s/__CLUSTERPOOL_AZURE_BASE_DOMAIN__/$CLUSTERPOOL_AZURE_BASE_DOMAIN/g" \
            -e "s/__CLUSTERIMAGESET_NAME__/$CLUSTERIMAGESET_NAME/g" \
            -e "s/__CLUSTERPOOL_SIZE__/$CLUSTERPOOL_SIZE/g" \
@@ -537,7 +537,7 @@ elif [[ "$PLATFORM" == "AZURE" ]]; then
            -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" ./templates/clusterpool.azure.yaml.template > ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 elif [[ "$PLATFORM" == "GCP" ]]; then
     ${SED} -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" \
-           -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
+           -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
            -e "s/__CLUSTERPOOL_GCP_BASE_DOMAIN__/$CLUSTERPOOL_GCP_BASE_DOMAIN/g" \
            -e "s/__CLUSTERIMAGESET_NAME__/$CLUSTERIMAGESET_NAME/g" \
            -e "s/__CLUSTERPOOL_SIZE__/$CLUSTERPOOL_SIZE/g" \
@@ -559,4 +559,4 @@ if [[ "$?" -ne 0 ]]; then
     printf "${RED}Failed to create ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
     exit 3
 fi
-printf "${GREEN}ClusterPool ${CLUSTERPOOL_NAME} successfully created, run 'oc get clusterpool ${CLUSTERPOOL_NAME} -n ${TARGET_NAMESPACE}' to view your ClusterPool.${CLEAR}\n"
+printf "${GREEN}ClusterPool ${CLUSTERPOOL_NAME} successfully created, run 'oc get clusterpool ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE}' to view your ClusterPool.${CLEAR}\n"

@@ -2,7 +2,7 @@ apiVersion: hive.openshift.io/v1
 kind: ClusterPool
 metadata:
   name: __CLUSTERPOOL_NAME__
-  namespace: __TARGET_NAMESPACE__
+  namespace: __CLUSTERPOOL_TARGET_NAMESPACE__
 spec:
   baseDomain: __CLUSTERPOOL_GCP_BASE_DOMAIN__
   imageSetRef:

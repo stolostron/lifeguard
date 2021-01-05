@@ -42,7 +42,7 @@ VER=`oc version | grep "Server Version:"`
 printf "${BLUE}* ${VER}${CLEAR}\n"
 
 #----SELECT A NAMESPACE----#
-if [[ "$TARGET_NAMESPACE" == "" ]]; then
+if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     # Prompt the user to choose a project
     projects=$(oc get project -o custom-columns=NAME:.metadata.name,STATUS:.status.phase)
     project_names=()
@@ -61,27 +61,27 @@ if [[ "$TARGET_NAMESPACE" == "" ]]; then
         i=$((i+1))
     done;
     unset IFS
-    printf "${BLUE}- note: to skip this step in the future, export TARGET_NAMESPACE${CLEAR}\n"
+    printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_TARGET_NAMESPACE${CLEAR}\n"
     printf "${YELLOW}Enter the number corresponding to your desired Project/Namespace from the list above:${CLEAR} "
     read selection
     if [ "$selection" -lt "$i" ]; then
-        TARGET_NAMESPACE=${project_names[$(($selection-1))]}
+        CLUSTERPOOL_TARGET_NAMESPACE=${project_names[$(($selection-1))]}
     else
         printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
-oc get projects ${TARGET_NAMESPACE} --no-headers &> /dev/null
+oc get projects ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
+    printf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
-printf "${GREEN}* Using $TARGET_NAMESPACE\n${CLEAR}"
+printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
 
 #----SELECT A CLUSTERPOOL TO DELETE----#
 if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
     # Prompt the user to choose a ClusterImageSet
-    clusterpools=$(oc get clusterpools -n ${TARGET_NAMESPACE})
+    clusterpools=$(oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE})
     clusterpool_names=()
     i=0
     IFS=$'\n'
@@ -110,14 +110,14 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
 else
     oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
 printf "${GREEN}* Using: $CLUSTERPOOL_NAME${CLEAR}\n"
 
-#-----INFORM THE USER WHICH CLUSTERCLAIMS WOULD BE ORPHANED (WITHIN TARGET_NAMESPACE)-----#
-clusterclaims=$(oc get clusterclaim -n $TARGET_NAMESPACE -o json | jq --arg CLUSTERPOOLNAME "$CLUSTERPOOL_NAME" '.items[] | select(.spec.clusterPoolName==$CLUSTERPOOLNAME) | .metadata.name')
+#-----INFORM THE USER WHICH CLUSTERCLAIMS WOULD BE ORPHANED (WITHIN CLUSTERPOOL_TARGET_NAMESPACE)-----#
+clusterclaims=$(oc get clusterclaim -n $CLUSTERPOOL_TARGET_NAMESPACE -o json | jq --arg CLUSTERPOOLNAME "$CLUSTERPOOL_NAME" '.items[] | select(.spec.clusterPoolName==$CLUSTERPOOLNAME) | .metadata.name')
 if [[ "$clusterclaims" != "" ]]; then
     printf "${YELLOW}The following ClusterClaims and their associated deployments will be orphaned if you delete $CLUSTERPOOL_NAME.${CLEAR}\n"
     i=1
@@ -134,7 +134,7 @@ if [[ ! ("$selection" == "Y" || "$selection" == "y") ]]; then
     printf "${GREEN} Deletion cancelled, exiting.${CLEAR}\n"
     exit 0
 else
-    oc delete clusterpool -n $TARGET_NAMESPACE $CLUSTERPOOL_NAME
+    oc delete clusterpool -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_NAME
     if [[ "$?" -ne 0 ]]; then
         printf "${RED}Failed to delete ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
         exit 3
