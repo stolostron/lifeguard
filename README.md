@@ -23,7 +23,7 @@ To create your first ClusterPool:
 
 You may also consider defining a series of environment variables to "fully automate" the creation of additional clusterpools once you have one clusterpool under your belt.  The prompts in `apply.sh` will note which environment variable can be defined to skip a given set, but here's a full list for convenience:
 ```
-TARGET_NAMESPACE - namespace you want to create/destroy a clusterpool in
+CLUSTERPOOL_TARGET_NAMESPACE - namespace you want to create/destroy a clusterpool in
 PLATFORM - cloud platform you wish to use, must be one of: AWS, AZURE, GCP
 CLOUD_CREDENTIAL_SECRET - name of the secret to be used to access your cloud platform
 OCP_PULL_SECRET - name of the secret containing your OCP pull secret
@@ -62,7 +62,7 @@ To claim a cluster from a ClusterPool:
 
 You may also consider defining a series of environment variables to "fully automate" the creation of new ClusterClaims once you have one claim under your belt.  The prompts in `apply.sh` will note which environment variable can be defined to skip a given set, but here's a full list for convenience:
 ```
-TARGET_NAMESPACE - namespace you want to create/destroy a clusterpool in
+CLUSTERPOOL_TARGET_NAMESPACE - namespace you want to create/destroy a clusterpool in
 CLUSTERCLAIM_NAME - chosen name for the clusterclaim, must be unique and not contain `.`
 CLUSTERPOOL_NAME - your chosen name for the clusterpool
 ```
