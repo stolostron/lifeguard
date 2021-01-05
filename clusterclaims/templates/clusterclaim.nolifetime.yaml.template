@@ -2,6 +2,6 @@ apiVersion: hive.openshift.io/v1
 kind: ClusterClaim
 metadata:
   name: __CLUSTERCLAIM_NAME__
-  namespace: __TARGET_NAMESPACE__
+  namespace: __CLUSTERPOOL_TARGET_NAMESPACE__
 spec:
   clusterPoolName: __CLUSTERPOOL_NAME__

@@ -47,7 +47,7 @@ VER=`oc version | grep "Server Version:"`
 printf "${BLUE}* ${VER}${CLEAR}\n"
 
 #----SELECT A NAMESPACE----#
-if [[ "$TARGET_NAMESPACE" == "" ]]; then
+if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     # Prompt the user to choose a project
     projects=$(oc get project -o custom-columns=NAME:.metadata.name,STATUS:.status.phase)
     project_names=()
@@ -66,27 +66,27 @@ if [[ "$TARGET_NAMESPACE" == "" ]]; then
         i=$((i+1))
     done;
     unset IFS
-    printf "${BLUE}- note: to skip this step in the future, export TARGET_NAMESPACE${CLEAR}\n"
+    printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_TARGET_NAMESPACE${CLEAR}\n"
     printf "${YELLOW}Enter the number corresponding to your desired Project/Namespace from the list above:${CLEAR} "
     read selection
     if [ "$selection" -lt "$i" ]; then
-        TARGET_NAMESPACE=${project_names[$(($selection-1))]}
+        CLUSTERPOOL_TARGET_NAMESPACE=${project_names[$(($selection-1))]}
     else
         printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
-oc get projects ${TARGET_NAMESPACE} --no-headers &> /dev/null
+oc get projects ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
+    printf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
-printf "${GREEN}* Using $TARGET_NAMESPACE\n${CLEAR}"
+printf "${GREEN}* Using ${CLUSTERPOOL_TARGET_NAMESPACE}\n${CLEAR}"
 
 #----SELECT A CLUSTERPOOL TO CLAIM FROM----#
 if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
     # Prompt the user to choose a ClusterImageSet
-    clusterpools=$(oc get clusterpools -n ${TARGET_NAMESPACE})
+    clusterpools=$(oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE})
     clusterpool_names=()
     i=0
     IFS=$'\n'
@@ -103,7 +103,7 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
         i=$((i+1))
     done;
     if [[ "$i" -lt 1 ]]; then
-        printf "${RED}No ClusterPools found in the ${TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${TARGET_NAMESPACE} has ClusterPools with 'oc get clusterpool -n $TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        printf "${RED}No ClusterPools found in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${CLUSTERPOOL_TARGET_NAMESPACE} has ClusterPools with 'oc get clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
     unset IFS
@@ -119,7 +119,7 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
 else
     oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -163,13 +163,13 @@ fi
 if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
     mkdir ./$CLUSTERCLAIM_NAME
 fi
-if [[ "$CLUSTERCLAIM_LIFETIME" == "" ]]; then
+if [[ "$CLUSTERCLAIM_LIFETIME" == "" || "$CLUSTERCLAIM_LIFETIME" == "false" ]]; then
     ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
-            -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
+            -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
             -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.nolifetime.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 else
     ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
-            -e "s/__TARGET_NAMESPACE__/$TARGET_NAMESPACE/g" \
+            -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
             -e "s/__CLUSTERCLAIM_LIFETIME__/$CLUSTERCLAIM_LIFETIME/g" \
             -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.lifetime.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 fi
@@ -220,7 +220,7 @@ fi
 
 
 #-----CHECK FOR AVAILABLE CLUSTERS-----#
-avail_clusters=$(oc get clusterpool ${CLUSTERPOOL_NAME} -n ${TARGET_NAMESPACE} -o json | jq -r '.status.ready')
+avail_clusters=$(oc get clusterpool ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json | jq -r '.status.ready')
 if [[ "$avail_clusters" -eq 0 ]]; then
     printf "${BLUE}* No Clusters are available in ${CLUSTERPOOL_NAME}, polling for 60 minutes after claim creation for claim to be fulfilled and awake to allow for cluster provision to occur.${CLEAR}\n"
     POLL_DURATION=3600
@@ -236,7 +236,7 @@ cat ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 printf "\n"
 oc apply -f ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't apply ClusterClaim ${CLUSTERCLAIM_NAME} in ${TARGET_NAMESPACE} on ${HOST_URL}, see the above error message for more details.${CLEAR}\n"
+    printf "${RED}Couldn't apply ClusterClaim ${CLUSTERCLAIM_NAME} in ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, see the above error message for more details.${CLEAR}\n"
     exit 3
 fi
 printf "* ${GREEN}ClusterClaim ${CLUSTERCLAIM_NAME} on ${CLUSTERPOOL_NAME} successfully created, polling ${POLL_DURATION} seconds for claim to be fulfilled and cluster to become ready.\n${CLEAR}"
@@ -256,7 +256,7 @@ fi
 # Initialize loop variables
 CC_JSON=$CLUSTERCLAIM_NAME/.ClusterClaim.json
 CD_JSON=$CLUSTERCLAIM_NAME/.ClusterDeployment.json
-oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${TARGET_NAMESPACE} -o json > $CC_JSON
+oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
 CC_NS=`jq -r '.spec.namespace' $CC_JSON`
 if [[ "$CC_NS" != "null" ]]; then
     oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON
@@ -276,7 +276,7 @@ fi
 poll_acc=0
 # Poll for claim to be fulfilled and ready
 while [[ ("$CC_PEND_CONDITION" != "False" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False") && "$poll_acc" -lt $POLL_DURATION ]]; do
-    oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${TARGET_NAMESPACE} -o json > $CC_JSON
+    oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
     CC_NS=`jq -r '.spec.namespace' $CC_JSON`
     if [[ "$CC_NS" != "null" ]]; then
         oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON
