@@ -46,6 +46,13 @@ printf "${BLUE}* Using cluster: ${HOST_URL}${CLEAR}\n"
 VER=`oc version | grep "Server Version:"`
 printf "${BLUE}* ${VER}${CLEAR}\n"
 
+
+#-----CHECK FOR DRY RUN FLAG-----#
+if [[ "$1" == "--dry-run" ]]; then
+    CLUSTERCLAIM_DRY_RUN="true"
+fi
+
+
 #----SELECT A NAMESPACE----#
 if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     # Prompt the user to choose a project
@@ -175,47 +182,83 @@ else
 fi
 
 
+#-----DETECT IF THE USER IS USING A SERVICE ACCOUNT - IF SO SET SUBJECT-----#
+if [[ $(oc whoami | awk -F ":" '{print $2}') == "serviceaccount" ]]; then
+    printf "${GREEN}* ServiceAccount use Detected, automatically adding ServiceAccount as a Subject${CLEAR}\n"
+    CLUSTERCLAIM_SERVICE_ACCOUNT="$(oc whoami | awk -F ":" '{print $4}')"
+    echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    ${SED} -e "s/__RBAC_SERVICEACCOUNT_NAME__/$CLUSTERCLAIM_SERVICE_ACCOUNT/g" \
+        -e "s/__CLUSTERCLAIM_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
+        ./templates/clusterclaim.subject.serviceaccount.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+fi
+
+
 #-----OPTIONALLY SELECT AN RBAC GROUP-----#
 if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
     printf  "${BLUE}- note: if you choose 'Y', you must have read permissions on group.user.openshift.io.${CLEAR}\n"
     printf "${YELLOW}Do you want to associate this ClusterClaim with an RBAC Group? (Y/N) ${CLEAR}"
     read selection
     if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
-        # Prompt the user to choose a project
-        groups=$(oc get group -o=custom-columns=NAME:.metadata.name)
-        group_names=()
-        i=0
-        IFS=$'\n'
-        for line in $groups; do
-            if [ $i -eq 0 ]; then
-                printf "   \t$line\n"
-            else
-                printf "($i)\t$line\n"
-                unset IFS
-                line_list=($line)
-                group_names+=(${line_list[0]})
-                IFS=$'\n'
+        # Prompt the user to choose an RBAC GROUP
+        groups=$(oc get group -o=custom-columns=NAME:.metadata.name 2> /dev/null)
+        if [[ "$?" != "0" ]]; then
+            printf "${BLUE}- It looks like you don't have any RBAC groups (our query errored).${CLEAR}\n"
+            printf "${YELLOW}Enter the name of your RBAC group: ${CLEAR}"
+            read CLUSTERCLAIM_GROUP_NAME
+            if [ "$CLUSTERCLAIM_GROUP_NAME" == "" ]; then
+                printf "${RED}No ClusterClaim group name entered (found empty string), exiting."
+                exit 1
             fi
-            i=$((i+1))
-        done;
-        unset IFS
-        printf "${BLUE}- note: to skip this step in the future, export CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
-        printf "${YELLOW}Enter the number corresponding to your desired group from the list above:${CLEAR} "
-        read selection
-        if [ "$selection" -lt "$i" ]; then
-            CLUSTERCLAIM_GROUP_NAME=${group_names[$(($selection-1))]}
         else
-            printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
-            exit 3
+            group_names=()
+            i=0
+            IFS=$'\n'
+            for line in $groups; do
+                if [ $i -eq 0 ]; then
+                    printf "   \t$line\n"
+                else
+                    printf "($i)\t$line\n"
+                    unset IFS
+                    line_list=($line)
+                    group_names+=(${line_list[0]})
+                    IFS=$'\n'
+                fi
+                i=$((i+1))
+            done;
+            unset IFS
+            printf "${BLUE}- note: to skip this step in the future, export CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
+            printf "${YELLOW}Enter the number corresponding to your desired group from the list above:${CLEAR} "
+            read selection
+            if [ "$selection" -lt "$i" ]; then
+                CLUSTERCLAIM_GROUP_NAME=${group_names[$(($selection-1))]}
+            else
+                printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+                exit 3
+            fi
         fi
         printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
         echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        if [[ "$CLUSTERCLAIM_SERVICE_ACCOUNT" == "" ]]; then
+            echo "subjects:" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        fi
         ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     fi
 else
     printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
     echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    if [[ "$CLUSTERCLAIM_SERVICE_ACCOUNT" == "" ]]; then
+        echo "subjects:" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    fi
     ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+fi
+
+
+#-----END CLUSTERCLAIM PROCESS EARLY IF THIS IS A DRY RUN-----#
+if [[ "$CLUSTERCLAIM_DRY_RUN" == "true" ]]; then
+    printf "${GREEN}'--dry-run' set, skipping claim creation.  You can find your clusterclaim yaml in $(pwd)/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml or as printed below.${CLEAR}\n"
+    cat ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    echo ""
+    exit 0
 fi
 
 
