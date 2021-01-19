@@ -202,7 +202,7 @@ if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
         # Prompt the user to choose an RBAC GROUP
         groups=$(oc get group -o=custom-columns=NAME:.metadata.name 2> /dev/null)
         if [[ "$?" != "0" ]]; then
-            printf "${BLUE}- It looks like you don't have any RBAC groups (our query errored).${CLEAR}\n"
+            printf "${BLUE}- It looks like you don't have access to any RBAC groups (our query errored).${CLEAR}\n"
             printf "${YELLOW}Enter the name of your RBAC group: ${CLEAR}"
             read CLUSTERCLAIM_GROUP_NAME
             if [ "$CLUSTERCLAIM_GROUP_NAME" == "" ]; then
