@@ -302,7 +302,7 @@ CD_JSON=$CLUSTERCLAIM_NAME/.ClusterDeployment.json
 oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
 CC_NS=`jq -r '.spec.namespace' $CC_JSON`
 if [[ "$CC_NS" != "null" ]]; then
-    oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON
+    oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON 2> $CD_ERROR
 else
     echo "" > $CD_JSON
 fi
@@ -322,7 +322,10 @@ while [[ ("$CC_PEND_CONDITION" != "False" || "$CD_HIB_CONDITION" != "False" || "
     oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
     CC_NS=`jq -r '.spec.namespace' $CC_JSON`
     if [[ "$CC_NS" != "null" ]]; then
-        oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON
+        oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON 2> $CD_ERROR
+        if (( $poll_acc > 0 )); then
+            printf "${BLUE}  Error getting ClusterDeployment: ${CD_ERROR}\n"
+        fi
     else
         echo "" > $CD_JSON
     fi
