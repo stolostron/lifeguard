@@ -212,7 +212,7 @@ printf "${BLUE}* ${VER}${CLEAR}\n"
 
 #----DEFAULTS----#
 # Generate a 5-digit random cluster identifier for resource tagging purposes
-RANDOM_IDENTIFIER=$(head /dev/urandom | LC_CTYPE=C tr -dc a-z0-9 | head -c 5 ; echo '')
+RANDOM_IDENTIFIER=$(head /dev/urandom | LC_CTYPE=C tr -dc "[:lower:][:digit:]" | head -c 5 ; echo '')
 SHORTNAME=$(echo $USER | head -c 8)
 
 # Generate a default resource name
