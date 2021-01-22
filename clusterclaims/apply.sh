@@ -29,7 +29,7 @@ fi
 
 #----DEFAULTS----#
 # Generate a 5-digit random cluster identifier for resource tagging purposes
-RANDOM_IDENTIFIER=$(head /dev/urandom | LC_CTYPE=C tr -dc a-z0-9 | head -c 5 ; echo '')
+RANDOM_IDENTIFIER=$(head /dev/urandom | LC_CTYPE=C tr -dc "[:lower:][:digit:]" | head -c 5 ; echo '')
 SHORTNAME=$(echo $USER | head -c 8)
 
 #----VALIDATE PREREQ----#
@@ -299,10 +299,11 @@ fi
 # Initialize loop variables
 CC_JSON=$CLUSTERCLAIM_NAME/.ClusterClaim.json
 CD_JSON=$CLUSTERCLAIM_NAME/.ClusterDeployment.json
+CD_ERROR=${CD_JSON}.error
 oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
 CC_NS=`jq -r '.spec.namespace' $CC_JSON`
 if [[ "$CC_NS" != "null" ]]; then
-    oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON
+    oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON 2> $CD_ERROR
 else
     echo "" > $CD_JSON
 fi
@@ -322,7 +323,10 @@ while [[ ("$CC_PEND_CONDITION" != "False" || "$CD_HIB_CONDITION" != "False" || "
     oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
     CC_NS=`jq -r '.spec.namespace' $CC_JSON`
     if [[ "$CC_NS" != "null" ]]; then
-        oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON
+        oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON 2> ${CD_ERROR}
+        if (( $poll_acc > 0 && $? > 0 )); then
+            printf "${BLUE}  Error getting ClusterDeployment: $(cat ${CD_ERROR})\n"
+        fi
     else
         echo "" > $CD_JSON
     fi
