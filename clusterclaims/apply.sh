@@ -295,7 +295,7 @@ fi
 
 #-----POLLING FOR CLAIM FULFILLMENT AND CLUSTER UNHIBERNATE-----#
 # TODO: Eliminate the code duplication before this while loop by using a better looping construct
-#       Alas nothing is coming to mind at the moment.  
+#       Alas nothing is coming to mind at the moment.
 # Initialize loop variables
 CC_JSON=$CLUSTERCLAIM_NAME/.ClusterClaim.json
 CD_JSON=$CLUSTERCLAIM_NAME/.ClusterDeployment.json
@@ -365,8 +365,8 @@ printf "${GREEN}* Cluster ${CC_NS} successfully claimed by ${CLUSTERCLAIM_NAME}.
 #-----EXTRACTING CLUSTER CREDENTIALS-----#
 creds_secret=`jq -r '.spec.clusterMetadata.adminPasswordSecretRef.name' $CD_JSON`
 kubeconfig_secret=`jq -r '.spec.clusterMetadata.adminKubeconfigSecretRef.name' $CD_JSON`
-username=`oc get secret -n $CC_NS $creds_secret -o json | jq -r '.data.username' | base64 -d`
-password=`oc get secret -n $CC_NS $creds_secret -o json | jq -r '.data.password' | base64 -d`
+username=`oc get secret -n $CC_NS $creds_secret -o json | jq -r '.data.username' | base64 --decode`
+password=`oc get secret -n $CC_NS $creds_secret -o json | jq -r '.data.password' | base64 --decode`
 basedomain=`jq -r '.spec.baseDomain' $CD_JSON`
 api_url=`jq -r '.status.apiURL' $CD_JSON`
 console_url=`jq -r '.status.webConsoleURL' $CD_JSON`
@@ -386,7 +386,7 @@ echo "{
 \"console_url\": \"$console_url\"
 }" > $CLUSTERCLAIM_NAME/$CLUSTERCLAIM_NAME.creds.json
 echo $password > $CLUSTERCLAIM_NAME/kubeadmin-password
-oc get secret -n $CC_NS $kubeconfig_secret -o json | jq -r '.data.kubeconfig' | base64 -d > $CLUSTERCLAIM_NAME/kubeconfig
+oc get secret -n $CC_NS $kubeconfig_secret -o json | jq -r '.data.kubeconfig' | base64 --decode > $CLUSTERCLAIM_NAME/kubeconfig
 echo "#!/bin/bash
 oc login $api_url -u $username -p $password --insecure-skip-tls-verify=true" > $CLUSTERCLAIM_NAME/oc-login.sh
 printf "${GREEN}Cluster credentials extracted for ${CC_NS}.  You can find full credentials in '$PWD/$CLUSTERCLAIM_NAME'.${CLEAR}\n"
