@@ -43,7 +43,7 @@ rules:
       - delete
 ```
 
-ClusterRoleBindings:
+ClusterRoleBindings - `clusterpool-user` for access to create/delete clusterpools and claims, `view` to view clusterimagesets and secrets, and `hive-cluster-pool-user` to [propogate permissions from pools in the namespace to the ClusterProvision/Deployment namespaces for provision failure debugging](https://github.com/openshift/hive/blob/master/docs/clusterpools.md#managing-admins-for-cluster-pools):
 ```
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -70,12 +70,73 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: view
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: <your-crb-name>
+  namespace: <group-namespace>
+subjects:
+  - kind: <one of: ServiceAccount,User,Group>
+    name: <group-name>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hive-cluster-pool-admin
 ```
 
 You can re-use the ClusterRole (`clusterpool-user`) bound to different namespaces for different groups - that way if you ever need to expand permissions, you only have to change the role in one place.  
 
-### Note on the `subjects` List in ClusterClaims and Debugging Failed Provisions
+### Note on the `subjects` List in ClusterClaims
 
-ClusterPools provision each cluster in their own namespace, housing the associated CluterProvision, ClusterDeployment, ClusterDeprovision, etc. objects in that namespace as well as the secrets holding teh password and kubeconfig for any successfully provisioned cluster.  Because all of this information is housed in another namespace, the ClusterRole and ClusterRoleBindings listed above won't give users access to the ClusterDeployment, associated secrets (user/pass), or the Cluster provision logs for any cluster created by their ClusterPool unless they claim a cluster from that pool and properly populate the `subjects` list of the ClusterClaim with their RBAC group or ServiceAccounts' name.  If the user provides RBAC targets in the subjects array, hive will allow the targets to view the claimed ClusterDeployment and Secrets.  However, users configured with the above roles and rolebindings will _not_ be able to see install logs for their ClusterPool clusters, so if they hit a quota or configuration issue, the admin will have to step in to provide debugging information.  The Hive and ACM teams are working on a resolution which will allow ClusterPools to propagate permissions to ClusterProvisions similar to the propagation seen with claims.  
+When defining a ClusterClaim against a pool using a user in an RBAC group or a Service Account, you'll need the add the RBAC Group and/or ServiceAccount as an item in the `subjects` array to gain permission for that SA or Group to read the ClusterDeployment, User/Pass, and Kubeconfig for the claimed cluster.  If the subjects array isn't formed properly, you won't have permission to read the access credentials for your claimed cluster.  
 
-`lifeguard` automatically prompts the user to enter an rbac group name if desired and automatically detects and adds a ServiceAccount name if `lifegaurd` was invoked by a service account.  
+Lifeguard will automatically detect if you're using a ServiceAccount to create the claim and add it to the subjects array and prompt you to optionally set an RBAC group as a subject for a created claim.  For reference, when using a ServiceAccount and an RBAC group, the generated subjects array will look like:
+```
+  subjects:
+  - kind: ServiceAccount
+    name: '__RBAC_SERVICEACCOUNT_NAME__'
+    namespace: '__CLUSTERCLAIM_NAMESPACE__'
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: '__RBAC_GROUP_NAME__'
+```
+
+## GitHub GroupSync
+
+Internally, we've started leveraging the [group-sync operator](https://github.com/redhat-cop/group-sync-operator) to syncronize our GitHub teams from the [open-cluster-management](https://github.com/open-cluster-management) GitHub orgs to our dev/test/ci infrastructure clusters.  When coupled with a [GitHub Identity Provider](https://docs.openshift.com/dedicated/4/authentication/identity_providers/configuring-github-identity-provider.html), group-sync can allow you to maintain up-to-date RBAC groups for your teams and allow teams to easily authenticate via RBAC and tokens - more secure than fixed passwords.  The group-sync operator and GitHub Identity Provider config are pretty well documented, but we'll overview the configuration process below and explain how we use it with our namespace-scoped roles.  
+
+### Installing GroupSync
+
+1. Install the Group Sync Operator from OperatorHub or direct from the [group-sync operator](https://github.com/redhat-cop/group-sync-operator) GitHub.  
+2. Create a group-sync object for GitHub after creating a `github-group-sync` secret as documented in https://github.com/redhat-cop/group-sync-operator#github
+Our Group sync looked something like:
+```
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: GroupSync
+metadata:
+  name: github-groupsync
+spec:
+  providers:
+    - github:
+        credentialsSecret:
+          name: <github-token-secret-name, ex: github-group-sync>
+          namespace: <namespace-where-group-sync-is-installed, ex: group-sync>
+        organization: <your-org ex: open-cluster-management>
+      name: github
+  schedule: 0/30 * * * *
+```
+**Note:** we added a `spec.schedule` entry to have the GitHub groups sync with GitHub every 30 minutes.  
+3. Run `oc get group` and verify that your groups synced from GitHub successfully.  
+4. Set up a [GitHub Identity Provider](https://docs.openshift.com/dedicated/4/authentication/identity_providers/configuring-github-identity-provider.html) by following the linked instructions.  
+5. OPTIONAL: For CI use-cases, you'll need to create ServiceAccounts and use token-based authentication - these service accounts can't be members of RBAC Groups, but they have their own grouping mechanism and can be assigned the same roles as your RBAC Groups.
+6. OPTIONAL: Create a namespace for each Group that you want to use clusterpools (to isolate teams)
+6. Configure the ClusterRoleBindings shown above with the target RBAC groups by setting the subjects list as follows, setting the namespace of the ClusterRoleBinding as desired:
+```
+  subjects:
+    - kind: Group
+      apiGroup: rbac.authorization.k8s.io
+      name: <github-group>
+```
+7. Repeat or extend the list to include all groups you wish to have access.  In our case, we'll create ClusterRoleBindings for each Group mapping to each Groups' namespace.  
+
