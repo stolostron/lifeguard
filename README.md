@@ -21,7 +21,8 @@ If you want to use ClusterPools (the primary focus of this repo), you'll first n
 Once you have a cluster, we recommend that you configure RBAC groups and/or Service Accounts to federate access to your ClusterPools and ClusterDeployments.  These Kubernetes resources represent OpenShift clusters and the lifecycle of these Kube resources determines the state of those OpenShift clusters, so it is important to restrict access to these resources especially when used in automation. 
 
 We have some documentation and resources to help you make the best choices around RBAC for ClusterPools derived from our own experience using ClusterPools on RHACM to serve multitenant users (internal dev squads, not true multitenancy) and at scale within CI scenarios.  Our resources can be found in the `docs` directory of this repo, individual documents linked below:
-* 
+* [Creating RBAC Gropus and Setting up the Group Sync Operator](docs/creating_rbac_groups_and_groupsync.md)
+* [Creating and Using Service Accounts for CI](docs/creating_and_using_service_accounts_for_CI.md)
 
 ## Creating and Consuming Clusterpools
 
