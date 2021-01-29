@@ -1,8 +1,8 @@
 # Configuring RBAC Groups and GroupSync
 
-One of the primary use-cases of Clusterpools is to provide dev/test environments with pre-configured security constraints, ICSPs, sizing, etc at scale across a development organization.  Clusterpools can provide these environments efficiently, quickly, and at scale to developers - eliminating the common issue of generating development environments and, when combined with [tools to toggle hibernation](https://www.openshift.com/blog/hibernate-for-cost-savings-for-advanced-cluster-management-provisioned-clusters-with-subscriptions), it can also represent a reduction in cost for development environments. 
+One of the primary use-cases of ClusterPools is to provide dev/test environments with pre-configured security constraints, ImageContentSourcePolicies, sizing, etc at scale across a development organization.  ClusterPools can provide these environments efficiently, quickly, and at scale to developers - eliminating the common issue of generating development environments and, when combined with [tools to toggle hibernation](https://www.openshift.com/blog/hibernate-for-cost-savings-for-advanced-cluster-management-provisioned-clusters-with-subscriptions), it can also represent a reduction in cost for development environments. 
 
-To achieve this effectiely in our experience, we needed to have development squads share access to a common "Clusterpool Host" Hub cluster with sufficient permissions to create/consume/delete clusterpools without interfering with one anothers' resources or leaking credentials cross-squad.  We accomplish this encapsulation by granting squads namespace-scoped access with each squad owning and operating within a single namespace.  This can be accomplished by creating and allocated a few roles, overviewed below.   
+To achieve this effectively in our experience, we needed to have development squads share access to a common "Clusterpool Host" Hub cluster with sufficient permissions to create/consume/delete clusterpools without interfering with one anothers' resources or leaking credentials cross-squad.  We accomplish this encapsulation by granting squads namespace-scoped access with each squad owning and operating within a single namespace.  This can be accomplished by creating and allocating a few roles, overviewed below.   
 
 We mirror/generate these RBAC groups from our `open-cluster-management` GitHub organization using the [group-sync operator](https://github.com/redhat-cop/group-sync-operator) after configuring a GitHub OAuth Provider on the cluster, which we'll also overview below.  
 
@@ -10,7 +10,7 @@ We mirror/generate these RBAC groups from our `open-cluster-management` GitHub o
 
 When it comes to our internal development squads, we will sometimes take the "easy route" and allocate each sqaud (represented as an RBAC group in OpenShift mirrored from GitHub via group-sync) a namespace and give the group `cluster-admin` within that namespace, but we don't recommend that most users give anyone `cluster-admin`, even on a namespace.  Instead, we recommend allocating `create` and `delete` access sparingly.  
 
-We recommend that you create a namespace for each rbac group and grant the group the standard openshift view role and a custom clusterpool-focused role on that namespace using the ClusterRole and ClusterRoleBindings below:
+We recommend that you create a namespace for each rbac group and grant the group the standard openshift view role and a custom clusterpool-focused role on that namespace using the ClusterRole and RoleBindings below:
 
 Custom ClusterRole - grants access to create/delete clusterpools, claims, and deployments as well as secrets (required for cloud platform creds and install-configs):
 ```
@@ -43,9 +43,9 @@ rules:
       - delete
 ```
 
-ClusterRoleBindings - `clusterpool-user` for access to create/delete clusterpools and claims, `view` to view clusterimagesets and secrets, and `hive-cluster-pool-user` to [propogate permissions from pools in the namespace to the ClusterProvision/Deployment namespaces for provision failure debugging](https://github.com/openshift/hive/blob/master/docs/clusterpools.md#managing-admins-for-cluster-pools):
+RoleBindings - `clusterpool-user` for access to create/delete clusterpools and claims, `view` to view clusterimagesets and secrets, and `hive-cluster-pool-user` to propagate permissions from pools in the namespace to the ClusterProvision/Deployment namespaces for provision failure debugging (see Hive documentation on [Managing admins for Cluster Pools](https://github.com/openshift/hive/blob/master/docs/clusterpools.md#managing-admins-for-cluster-pools)):
 ```
-kind: ClusterRoleBinding
+kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: <your-crb-name>
@@ -58,7 +58,7 @@ roleRef:
   kind: ClusterRole
   name: clusterpool-user
 ---
-kind: ClusterRoleBinding
+kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: <your-crb-name>
@@ -71,7 +71,7 @@ roleRef:
   kind: ClusterRole
   name: view
 ---
-kind: ClusterRoleBinding
+kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: <your-crb-name>
@@ -93,6 +93,7 @@ When defining a ClusterClaim against a pool using a user in an RBAC group or a S
 
 Lifeguard will automatically detect if you're using a ServiceAccount to create the claim and add it to the subjects array and prompt you to optionally set an RBAC group as a subject for a created claim.  For reference, when using a ServiceAccount and an RBAC group, the generated subjects array will look like:
 ```
+spec:
   subjects:
   - kind: ServiceAccount
     name: '__RBAC_SERVICEACCOUNT_NAME__'
@@ -104,13 +105,13 @@ Lifeguard will automatically detect if you're using a ServiceAccount to create t
 
 ## GitHub GroupSync
 
-Internally, we've started leveraging the [group-sync operator](https://github.com/redhat-cop/group-sync-operator) to syncronize our GitHub teams from the [open-cluster-management](https://github.com/open-cluster-management) GitHub orgs to our dev/test/ci infrastructure clusters.  When coupled with a [GitHub Identity Provider](https://docs.openshift.com/dedicated/4/authentication/identity_providers/configuring-github-identity-provider.html), group-sync can allow you to maintain up-to-date RBAC groups for your teams and allow teams to easily authenticate via RBAC and tokens - more secure than fixed passwords.  The group-sync operator and GitHub Identity Provider config are pretty well documented, but we'll overview the configuration process below and explain how we use it with our namespace-scoped roles.  
+Internally, we've started leveraging the [group-sync operator](https://github.com/redhat-cop/group-sync-operator) to synchronize our GitHub teams from the [open-cluster-management](https://github.com/open-cluster-management) GitHub orgs to our dev/test/ci infrastructure clusters.  When coupled with a [GitHub Identity Provider](https://docs.openshift.com/dedicated/4/authentication/identity_providers/configuring-github-identity-provider.html), group-sync can allow you to maintain up-to-date RBAC groups for your teams and allow teams to easily authenticate via RBAC and tokens - more secure than fixed passwords.  The group-sync operator and GitHub Identity Provider config are pretty well documented, but we'll overview the configuration process below and explain how we use it with our namespace-scoped roles.  
 
 ### Installing GroupSync
 
 1. Install the Group Sync Operator from OperatorHub or direct from the [group-sync operator](https://github.com/redhat-cop/group-sync-operator) GitHub.  
 2. Create a group-sync object for GitHub after creating a `github-group-sync` secret as documented in https://github.com/redhat-cop/group-sync-operator#github
-Our Group sync looked something like:
+Our Group sync looks something like:
 ```
 apiVersion: redhatcop.redhat.io/v1alpha1
 kind: GroupSync
@@ -131,12 +132,12 @@ spec:
 4. Set up a [GitHub Identity Provider](https://docs.openshift.com/dedicated/4/authentication/identity_providers/configuring-github-identity-provider.html) by following the linked instructions.  
 5. OPTIONAL: For CI use-cases, you'll need to create ServiceAccounts and use token-based authentication - these service accounts can't be members of RBAC Groups, but they have their own grouping mechanism and can be assigned the same roles as your RBAC Groups.
 6. OPTIONAL: Create a namespace for each Group that you want to use clusterpools (to isolate teams)
-6. Configure the ClusterRoleBindings shown above with the target RBAC groups by setting the subjects list as follows, setting the namespace of the ClusterRoleBinding as desired:
+6. Configure the RoleBindings shown above with the target RBAC groups by setting the subjects list as follows, setting the namespace of the RoleBinding as desired:
 ```
   subjects:
     - kind: Group
       apiGroup: rbac.authorization.k8s.io
       name: <github-group>
 ```
-7. Repeat or extend the list to include all groups you wish to have access.  In our case, we'll create ClusterRoleBindings for each Group mapping to each Groups' namespace.  
+7. Repeat or extend the list to include all groups you wish to have access.  In our case, we'll create RoleBindings for each Group mapping to each Groups' namespace.  
 
