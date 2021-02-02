@@ -109,6 +109,14 @@ To extract the creentials from a pre-existing claim:
 2. `cd clusterclaims` and run `get_credentials.sh` (named for the `oc` command it will leverage throughout, `get`)
 3. Follow the prompts, the script will guide you through the credentials extraction
 
+#### Reconciling Credential directories for Claimed Clusters
+After creating multiple claims, you'll find that the directories for each are growing in number and no longer relevant. Additionally, there may have been claims created by your team that you want to access. To clean up and reconcile local claims with remote claims on the cluster, you can run `reconcile_claims.sh`.
+
+Reconciling claims will:
+1. Optionally clean out the `clusterclaims/backup/` directory
+1. Move claim folders not on the remote cluster to a `clusterclaims/backup/` directory (if there are duplicate names, they will be overwritten)
+2. Re-fetch all claims found remotely using `get-credentials.sh`
+
 #### Destroying a ClusterClaim and the Claimed Cluster
 
 To delete a ClusterClaim:
