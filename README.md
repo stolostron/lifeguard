@@ -10,6 +10,10 @@ Welcome to the Open Cluster Management _Lifeguard_ project.  _Lifeguard_ provide
 
 If you don't want colorized output or are using automation/a shell that can't show bash colorization, `export COLOR=False` for non-colorized output.  
 
+## Installing as an `oc` Extension
+
+You can easily install a basic version of `lifeguard` as an oc extension by running `make install-oc-extension`.  If you wish to uninstall these `oc` extensions at a later date - simply run `make uninstall-oc-extension`.  
+
 ## Prereqs
 
 ### Advanced Cluster Management/Hive Installation
