@@ -195,8 +195,8 @@ fi
 
 #-----OPTIONALLY SELECT AN RBAC GROUP-----#
 if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
-    printf  "${BLUE}- note 1: if you choose 'Y', you must have read permissions on group.user.openshift.io.${CLEAR}\n"
-    printf  "${BLUE}- note 2: unless you have clusterwide access to resouces, specifying your group is necessary to access the credentials for the created cluster.${CLEAR}\n"
+    printf  "${BLUE}- note: if you choose 'Y', you must have read permissions on group.user.openshift.io.${CLEAR}\n"
+    printf  "${BLUE}- note: unless you have clusterwide access to resouces, specifying your group is necessary to access the credentials for the claimed cluster.${CLEAR}\n"
     printf "${YELLOW}Do you want to associate this ClusterClaim with an RBAC Group? (Y/N) ${CLEAR}"
     read selection
     if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
