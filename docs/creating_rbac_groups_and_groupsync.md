@@ -12,7 +12,7 @@ When it comes to our internal development squads, we will sometimes take the "ea
 
 We recommend that you create a namespace for each rbac group and grant the group the standard openshift view role and a custom clusterpool-focused role on that namespace using the ClusterRole and RoleBindings below:
 
-Custom ClusterRole - grants access to create/delete clusterpools, claims, and deployments as well as secrets (required for cloud platform creds and install-configs):
+Custom ClusterRoles - grants access to create/delete clusterpools, claims, and deployments as well as secrets (required for cloud platform creds and install-configs) and a separate role to grant access to the cluster-wide resource ClusterImageSets:
 ```
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -41,9 +41,23 @@ rules:
       - list
       - create
       - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterpool-creator-clusterwide
+rules:
+  - apiGroups:
+      - 'hive.openshift.io'
+    resources:
+      - clusterimagesets
+    verbs:
+      - get
+      - watch
+      - list
 ```
 
-RoleBindings - `clusterpool-user` for access to create/delete clusterpools and claims, `view` to view clusterimagesets and secrets, and `hive-cluster-pool-user` to propagate permissions from pools in the namespace to the ClusterProvision/Deployment namespaces for provision failure debugging (see Hive documentation on [Managing admins for Cluster Pools](https://github.com/openshift/hive/blob/master/docs/clusterpools.md#managing-admins-for-cluster-pools)):
+RoleBindings - `clusterpool-user` for access to create/delete clusterpools and claims, `view` to view clusterimagesets and secrets, `hive-cluster-pool-user` to propagate permissions from pools in the namespace to the ClusterProvision/Deployment namespaces for provision failure debugging (see Hive documentation on [Managing admins for Cluster Pools](https://github.com/openshift/hive/blob/master/docs/clusterpools.md#managing-admins-for-cluster-pools)), and `clusterpool-creator-clusterwide` to give access to the ClusterImageSet cluster-scoped resource:
 ```
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -83,6 +97,18 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: hive-cluster-pool-admin
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: <your-crb-name>
+subjects:
+  - kind: <one of: ServiceAccount,User,Group>
+    name: <group-name>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clusterpool-creator-clusterwide
 ```
 
 You can re-use the ClusterRole (`clusterpool-user`) bound to different namespaces for different groups - that way if you ever need to expand permissions, you only have to change the role in one place.  
