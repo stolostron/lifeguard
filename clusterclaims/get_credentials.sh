@@ -157,7 +157,7 @@ else
     CD_UNR_CONDITION=""
     CD_UNR_REASON=""
 fi
-if [[ "$CC_PEND_CONDITION" != "False" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False" ]]; then
+if [[ "$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" == "True" || "$CD_UNR_CONDITION" == "True" ]]; then
     printf "${RED}Cluster is not ready, current state: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
     printf "${RED}Unable to extract credentials until cluster is claimed and ready.${CLEAR}\n"
     exit 3
