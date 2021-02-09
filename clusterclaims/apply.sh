@@ -35,13 +35,23 @@ SHORTNAME=$(echo $USER | head -c 8)
 #----VALIDATE PREREQ----#
 # User needs to be logged into the cluster
 printf "${BLUE}* Testing connection${CLEAR}\n"
-HOST_URL=$(oc status | grep -o "https.*api.*")
-if [ $? -ne 0 ]; then
+if (! oc status &>/dev/null); then
     printf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
     exit 2
 fi
-# Shorten to the basedomain and tell the user which cluster we're targetting
+HOST_URL=$(oc status | grep -o "https.*api.*")
+# Shorten to the basedomain and tell the user which cluster we're targeting
 HOST_URL=${HOST_URL/apps./}
+
+# If HOST_URL is empty, set to something generic
+if [[ -z "${HOST_URL}" ]]; then
+    if [[ -n "${KUBERNETES_SERVICE_HOST}" ]]; then
+        HOST_URL="<local-cluster>"
+    else
+        HOST_URL="<unspecifed-cluster>"
+    fi
+fi
+
 printf "${BLUE}* Using cluster: ${HOST_URL}${CLEAR}\n"
 VER=`oc version | grep "Server Version:"`
 printf "${BLUE}* ${VER}${CLEAR}\n"
