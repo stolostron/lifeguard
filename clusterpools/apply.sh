@@ -390,7 +390,7 @@ printf "${GREEN}* Using $OCP_PULL_SECRET\n${CLEAR}"
 #----SELECT OR CREATE CLUSTERIMAGESET----#
 if [[ "$CLUSTERIMAGESET_NAME" == "" ]]; then
     # Prompt the user to choose a ClusterImageSet
-    clusterimagesets=$(oc get clusterimagesets)
+    clusterimagesets=$(oc get clusterimagesets | sort -V)
     clusterimageset_names=()
     i=0
     IFS=$'\n'
