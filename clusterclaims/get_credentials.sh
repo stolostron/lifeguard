@@ -162,7 +162,7 @@ else
     CD_UNR_CONDITION=""
     CD_UNR_REASON=""
 fi
-if [[ "$CC_PEND_CONDITION" != "False" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False" ]]; then
+if [[ "$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False" ]]; then
     errorf "${RED}Cluster is not ready, current state: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
     errorf "${RED}Unable to extract credentials until cluster is claimed and ready.${CLEAR}\n"
     exit 3
@@ -197,5 +197,6 @@ echo $password > $CLUSTERCLAIM_NAME/kubeadmin-password
 oc get secret -n $CC_NS $kubeconfig_secret -o json | jq -r '.data.kubeconfig' | base64 --decode > $CLUSTERCLAIM_NAME/kubeconfig
 echo "#!/bin/bash
 oc login $api_url -u $username -p $password --insecure-skip-tls-verify=true" > $CLUSTERCLAIM_NAME/oc-login.sh
+chmod +x $CLUSTERCLAIM_NAME/oc-login.sh
 
 printf "${GREEN}Cluster credentials extracted for ${CC_NS}.  You can find full credentials in '$PWD/$CLUSTERCLAIM_NAME'.${CLEAR}\n"
