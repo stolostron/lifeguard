@@ -101,7 +101,7 @@ fi
 printf "${GREEN}* Using ${CLUSTERPOOL_TARGET_NAMESPACE}\n${CLEAR}"
 
 #----SELECT A CLUSTERPOOL TO CLAIM FROM----#
-if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
+while [[ "$CLUSTERPOOL_NAME" == "" ]]; do
     # Prompt the user to choose a ClusterImageSet
     clusterpools=$(oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE})
     clusterpool_names=()
@@ -119,26 +119,29 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
         fi
         i=$((i+1))
     done;
-    if [[ "$i" -lt 1 ]]; then
-        printf "${RED}No ClusterPools found in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${CLUSTERPOOL_TARGET_NAMESPACE} has ClusterPools with 'oc get clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
-        exit 3
-    fi
     unset IFS
+    new=$i
+    printf "($i)\tCreate a new ClusterPool\n"
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_NAME${CLEAR}\n"
     printf "${YELLOW}Enter the number corresponding to ClusterPool you want to claim a cluster from:${CLEAR} "
     read selection
-    if [ "$selection" -lt "$i" ]; then
+    if [ "$selection" -lt "$new" ]; then
         CLUSTERPOOL_NAME=${clusterpool_names[$(($selection-1))]}
+    elif [ "$selection" -eq "$new" ]; then
+        printf "${GREEN}* Creating a new ClusterPool using Lifeguard\n"
+        cd ../clusterpools
+        ./apply.sh
+        cd ../clusterclaims
+        printf "${GREEN}* Returning to choose a ClusterPool for your ClusterClaim\n${CLEAR}"
     else
         printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
-else
-    oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
-    if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
-        exit 3
-    fi
+done
+oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
+if [[ $? -ne 0 ]]; then
+    printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+    exit 3
 fi
 printf "${GREEN}* Using: $CLUSTERPOOL_NAME${CLEAR}\n"
 
