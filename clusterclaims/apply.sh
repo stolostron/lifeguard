@@ -330,7 +330,7 @@ else
 fi
 poll_acc=0
 # Poll for claim to be fulfilled and ready
-while [[ ("$CC_PEND_CONDITION" != "False" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False") && "$poll_acc" -lt $POLL_DURATION ]]; do
+while [[ ("$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False") && "$poll_acc" -lt $POLL_DURATION ]]; do
     oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
     CC_NS=`jq -r '.spec.namespace' $CC_JSON`
     if [[ "$CC_NS" != "null" ]]; then
@@ -360,7 +360,7 @@ Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_COND
     poll_acc=$((poll_acc+30))
 done
 if [[ "$poll_acc" -ge $POLL_DURATION ]]; then
-    if [[ "$CC_PEND_CONDITION" != "False" ]]; then
+    if [[ "$CC_PEND_CONDITION" == "True" ]]; then
         printf "${RED}ClusterClaim is still pending.  This likely indicates that the pool didn't have available clusters in time or the ClusterClaim was invalid.${CLEAR}\n"
         printf "${BLUE}Final Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
         exit 3
