@@ -87,14 +87,16 @@ REMOTE_CLAIMS=$(oc get clusterclaims -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-hea
 LOCAL_CLAIMS=$(ls -d1 ./*/ | grep -v "templates\|backup" | sed 's/^\.\///' | sed 's/\/$//')
 DIFF_CLAIMS=$(comm -1 -3 <(echo "${REMOTE_CLAIMS}") <(echo "${LOCAL_CLAIMS}"))
 if [[ -n "${DIFF_CLAIMS}" ]]; then
-    if (ls -d1 backup/*/ &>/dev/null); then
-        printf "${YELLOW}Would you like to remove the existing claim backups in ./backup (y/n)? ${CLEAR}"
-        read selection
-        case "$selection" in
-                y|Y )   printf "${GREEN}* Removing all directories stored in ./backup\n${CLEAR}"
-                        rm -r ./backup/*/
-                        ;;
-        esac
+    if [[ "${RECONCILE_SILENT}" != "true" ]]; then
+        if (ls -d1 backup/*/ &>/dev/null); then
+            printf "${YELLOW}Would you like to remove the existing claim backups in ./backup (y/n)? ${CLEAR}"
+            read selection
+            case "$selection" in
+                    y|Y )   printf "${GREEN}* Removing all directories stored in ./backup\n${CLEAR}"
+                            rm -r ./backup/*/
+                            ;;
+            esac
+        fi
     fi
     printf "${BLUE}* Moving existing claim directories not found remotely to ./backup folder:\n${CLEAR}"
     for claim_dir in ${DIFF_CLAIMS}; do
@@ -103,8 +105,14 @@ if [[ -n "${DIFF_CLAIMS}" ]]; then
         fi
         MOVED="false"
         if (! mv "${claim_dir}" ./backup/ &>/dev/null); then
-            printf "${YELLOW}Error moving ClusterClaim directory ${claim_dir}. Would you like to try overwriting any existing directories (y/n)? ${CLEAR}"
-            read selection
+            printf "${YELLOW}Error moving ClusterClaim directory ${claim_dir}. ${CLEAR}"
+            if [[ "${RECONCILE_SILENT}" != "true" ]]; then
+                printf "${YELLOW}Would you like to try overwriting any existing directories (y/n)? ${CLEAR}"
+                read selection
+            else
+                printf "\n"
+                selection="y"
+            fi
             case "$selection" in
                     y|Y )   printf "${GREEN}* Attempting force move of ${claim_dir}\n${CLEAR}"
                             rm -rf ./backup/${claim_dir}/ &>/dev/null
