@@ -121,7 +121,9 @@ Reconciling claims will:
 1. Move claim folders not on the remote cluster to a `clusterclaims/backup/` directory (if there are duplicate names, they will be overwritten)
 2. Re-fetch all claims found remotely using `get-credentials.sh`
 
-Set `export RECONCILE_SILENT="true"` to bypass cleaning up the backup directory and automatically force all moves (remove and replace any duplicate backups).
+It is configurable with the following variables:
+- `export RECONCILE_SILENT="true"` - Bypass cleaning up the backup directory and automatically force all moves (remove and replace any duplicate backups).
+- `export RECONCILE_SPECIFIC="true"` - Only reconcile the claim specified in CLUSTERCLAIM_NAME
 
 #### Destroying a ClusterClaim and the Claimed Cluster
 

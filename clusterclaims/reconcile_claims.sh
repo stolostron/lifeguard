@@ -134,7 +134,10 @@ fi
 
 if [[ -n "${REMOTE_CLAIMS}" ]]; then
     printf "${BLUE}* Re-initializing claim directories using remote ClusterClaims\n${CLEAR}"
-    REMOTE_CLAIMS=$(oc get clusterclaims -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers -o custom-columns="NAME:metadata.name")
+    if [[ "${RECONCILE_SPECIFIC}" == "true" ]]; then
+        CLAIM_FILTER="${CLUSTERCLAIM_NAME}"
+    fi
+    REMOTE_CLAIMS=$(oc get clusterclaims -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers -o custom-columns="NAME:metadata.name" | grep "${CLAIM_FILTER}")
     for CLUSTERCLAIM_NAME in ${REMOTE_CLAIMS}; do
         export CLUSTERPOOL_TARGET_NAMESPACE=${CLUSTERPOOL_TARGET_NAMESPACE}
         export CLUSTERCLAIM_NAME=${CLUSTERCLAIM_NAME}
