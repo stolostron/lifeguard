@@ -114,7 +114,7 @@ To extract the creentials from a pre-existing claim:
 3. Follow the prompts, the script will guide you through the credentials extraction
 
 #### Reconciling Credential directories for Claimed Clusters
-After creating multiple claims, you'll find that the directories for each are growing in number and no longer relevant. Additionally, there may have been claims created by your team that you want to access or claims of the same name that you'd like to update to the current credentials. To clean up and reconcile local claims with remote claims on the cluster, you can run `reconcile_claims.sh`.
+After creating multiple claims, you'll find that the directories for each are growing in number and no longer relevant. Additionally, there may have been claims created by your team that you want to access. To clean up and reconcile local claims with remote claims on the cluster, you can run `reconcile_claims.sh`.
 
 Reconciling claims will:
 1. Optionally clean out the `clusterclaims/backup/` directory
