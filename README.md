@@ -108,7 +108,7 @@ Error from server (Forbidden): secrets "<clusterdeployment-name>-<identifier>-ad
 #### Getting Credentials for a Claimed Cluster
 `apply.sh` will extract the credentials for the cluster you claimed and tell you how to access those credentials but, if you have a pre-existing claim, we have a utility script to handle _just_ credential extraction.  
 
-To extract the creentials from a pre-existing claim:
+To extract the credentials from a pre-existing claim:
 1. `oc login` to the OCM/ACM/Hive cluster where your clusterclaim resides
 2. `cd clusterclaims` and run `get_credentials.sh` (named for the `oc` command it will leverage throughout, `get`)
 3. Follow the prompts, the script will guide you through the credentials extraction
