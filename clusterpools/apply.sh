@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Error function for printing error messages to stderr
+errorf() {
+    printf >&2 "$@"
+}
+
 # Color codes for bash output
 BLUE='\e[36m'
 GREEN='\e[32m'
@@ -35,7 +40,7 @@ generate_aws_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-aws-creds to contain your AWS Credentials for Cluster Provisions.${CLEAR}\n"
     oc create secret generic $SHORTNAME-aws-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-literal=aws_access_key_id=$AWS_ACCESS_KEY_ID_UNENCODED --from-literal=aws_secret_access_key=$AWS_SECRET_ACCESS_KEY_UNENCODED
     if [[ "$?" != "0" ]]; then
-        printf "${RED}Unable to create AWS Credentials Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create AWS Credentials Secret. See above message for errors.  Exiting."
         exit 3
     fi
     CLOUD_CREDENTIAL_SECRET=$SHORTNAME-aws-creds
@@ -79,7 +84,7 @@ generate_azure_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-azure-creds to contain your Azure Credentials for Cluster Provisions.${CLEAR}\n"
     oc create secret generic $SHORTNAME-azure-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$AZURE_SERVICE_PRINCIPLE_JSON
     if [[ "$?" != "0" ]]; then
-        printf "${RED}Unable to create Azure Credentials Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create Azure Credentials Secret. See above message for errors.  Exiting."
         exit 3
     fi
     CLOUD_CREDENTIAL_SECRET=$SHORTNAME-azure-creds
@@ -113,7 +118,7 @@ generate_gcp_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-gcp-creds to contain your GCP Credentials for Cluster Provisions.${CLEAR}\n"
     oc create secret generic $SHORTNAME-gcp-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$GCP_SERVICE_ACCOUNT_JSON
     if [[ "$?" != "0" ]]; then
-        printf "${RED}Unable to create GCP Credentials Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create GCP Credentials Secret. See above message for errors.  Exiting."
         exit 3
     fi
     CLOUD_CREDENTIAL_SECRET=$SHORTNAME-gcp-creds
@@ -141,7 +146,7 @@ generate_openshift_pull_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-ocp-pull-secret to contain your OCP Pull Secret for Cluster Provisions.${CLEAR}\n"
     oc create secret generic ${SHORTNAME}-ocp-pull-secret --from-file=.dockerconfigjson=$OCP_PULL_SECRET --type=kubernetes.io/dockerconfigjson --namespace ${CLUSTERPOOL_TARGET_NAMESPACE}
     if [[ "$?" != "0" ]]; then
-        printf "${RED}Unable to create OCP Pull Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create OCP Pull Secret. See above message for errors.  Exiting."
         exit 3
     fi
     OCP_PULL_SECRET=${SHORTNAME}-ocp-pull-secret
@@ -155,7 +160,7 @@ generate_clusterimageset() {
     IMAGE_LIST=$(curl -X GET $IMAGE -s)
     IMAGE_MATCHES=$(echo $IMAGE_LIST | jq '.tags | length')
     if [[ "$IMAGE_MATCHES" -le 0 ]]; then
-        printf "${RED}Couldn't find an image for quay.io/openshift-release-dev/ocp-release:$CLUSTERIMAGESET_OCP_VERSION-x86_64, validate the desired version and try again.  Exiting.${CLEAR}\n"
+        errorf "${RED}Couldn't find an image for quay.io/openshift-release-dev/ocp-release:$CLUSTERIMAGESET_OCP_VERSION-x86_64, validate the desired version and try again.  Exiting.${CLEAR}\n"
         exit 3
     else
         CLUSTERIMAGESET_RELEASE_IMAGE="quay.io/openshift-release-dev/ocp-release:${CLUSTERIMAGESET_OCP_VERSION}-x86_64"
@@ -177,7 +182,7 @@ generate_clusterimageset() {
     printf "${CLEAR}\n"
     oc apply -f ./${CLUSTERIMAGESET_NAME}-clusterimageset/${CLUSTERIMAGESET_NAME}.clusterimageset.yaml
     if [[ "$?" -ne 0 ]]; then
-        printf "${RED}Failed to create ClusterImageSet $CLUSTERIMAGESET_NAME, see above error message for more detail.  This is likely a permissions issue - ClusterImageSets are a global cluster resource.${CLEAR}\n"
+        errorf "${RED}Failed to create ClusterImageSet $CLUSTERIMAGESET_NAME, see above error message for more detail.  This is likely a permissions issue - ClusterImageSets are a global cluster resource.${CLEAR}\n"
         exit 3
     fi
 }
@@ -189,8 +194,8 @@ BASE64="base64 -w 0"
 if [ "${OS}" == "darwin" ]; then
     SED="gsed"
     if [ ! -x "$(command -v ${SED})"  ]; then
-       printf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
-       printf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
+       errorf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
+       errorf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
        exit 1
     fi
     BASE64="base64"
@@ -201,7 +206,7 @@ fi
 printf "${BLUE}* Testing connection${CLEAR}\n"
 HOST_URL=$(oc status | grep -o "https.*api.*")
 if [ $? -ne 0 ]; then
-    printf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
+    errorf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
     exit 2
 fi
 # Shorten to the basedomain and tell the user which cluster we're targetting
@@ -244,13 +249,13 @@ if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     if [ "$selection" -lt "$i" ]; then
         CLUSTERPOOL_TARGET_NAMESPACE=${project_names[$(($selection-1))]}
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
 oc get projects ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
+    errorf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
@@ -280,7 +285,7 @@ else
         fi
     done;
     if [ "$found" -ne 1 ]; then
-        printf "${RED}Invalid value $PLATFORM for the variable PLATFORM.  Choose from: $platforms. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid value $PLATFORM for the variable PLATFORM.  Choose from: $platforms. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
@@ -322,17 +327,17 @@ if [[ "$CLOUD_CREDENTIAL_SECRET" == "" ]]; then
         elif [[ "$PLATFORM" == "GCP" ]]; then
             generate_gcp_secret
         else
-            printf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}"
+            errorf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}"
             exit 3
         fi
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 else
     oc get secret ${CLOUD_CREDENTIAL_SECRET} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a secret named ${CLOUD_CREDENTIAL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        errorf "${RED}Couldn't find a secret named ${CLOUD_CREDENTIAL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -369,13 +374,13 @@ if [[ "$OCP_PULL_SECRET" == "" ]]; then
     elif [ "$selection" -eq "$new" ]; then
         generate_openshift_pull_secret
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 else
     oc get secret ${OCP_PULL_SECRET} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a secret named ${OCP_PULL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        errorf "${RED}Couldn't find a secret named ${OCP_PULL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -412,13 +417,13 @@ if [[ "$CLUSTERIMAGESET_NAME" == "" ]]; then
     elif [ "$selection" -eq "$new" ]; then
         generate_clusterimageset
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 else
     oc get ClusterImageSet ${CLUSTERIMAGESET_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterImageSet named ${CLUSTERIMAGESET_NAME} on ${HOST_URL}, validate your choice with 'oc get clusterimagesets' and try again.${CLEAR}\n"
+        errorf "${RED}Couldn't find a ClusterImageSet named ${CLUSTERIMAGESET_NAME} on ${HOST_URL}, validate your choice with 'oc get clusterimagesets' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -480,7 +485,7 @@ elif [[ "$PLATFORM" == "GCP" ]]; then
     fi
     printf "${GREEN}* Using GCP Base Domain ${CLUSTERPOOL_GCP_BASE_DOMAIN}${CLEAR}\n"
 else
-    printf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}\n"
+    errorf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}\n"
     exit 3
 fi
 
@@ -545,7 +550,7 @@ elif [[ "$PLATFORM" == "GCP" ]]; then
            -e "s/__CLOUD_CREDENTIAL_SECRET__/$CLOUD_CREDENTIAL_SECRET/g" \
            -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" ./templates/clusterpool.gcp.yaml.template > ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 else
-    printf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}"
+    errorf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}"
     exit 3
 fi
 
@@ -556,7 +561,7 @@ cat ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 printf "${CLEAR}\n"
 oc apply -f ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 if [[ "$?" -ne 0 ]]; then
-    printf "${RED}Failed to create ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
+    errorf "${RED}Failed to create ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}ClusterPool ${CLUSTERPOOL_NAME} successfully created, run 'oc get clusterpool ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE}' to view your ClusterPool.${CLEAR}\n"

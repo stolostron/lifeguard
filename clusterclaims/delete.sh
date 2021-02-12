@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Error function for printing error messages to stderr
+errorf() {
+    printf >&2 "$@"
+}
+
 # Color codes for bash output
 BLUE='\e[36m'
 GREEN='\e[32m'
@@ -21,8 +26,8 @@ BASE64="base64 -w 0"
 if [ "${OS}" == "darwin" ]; then
     SED="gsed"
     if [ ! -x "$(command -v ${SED})"  ]; then
-       printf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
-       printf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
+       errorf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
+       errorf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
        exit 1
     fi
     BASE64="base64"
@@ -34,7 +39,7 @@ fi
 printf "${BLUE}* Testing connection${CLEAR}\n"
 HOST_URL=$(oc status | grep -o "https.*api.*")
 if [ $? -ne 0 ]; then
-    printf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
+    errorf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
     exit 2
 fi
 # Shorten to the basedomain and tell the user which cluster we're targetting
@@ -70,13 +75,13 @@ if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     if [ "$selection" -lt "$i" ]; then
         CLUSTERPOOL_TARGET_NAMESPACE=${project_names[$(($selection-1))]}
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
 oc get projects ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
+    errorf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
@@ -102,7 +107,7 @@ if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
         i=$((i+1))
     done;
     if [[ "$i" -lt 1 ]]; then
-        printf "${RED}No ClusterClaims found in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${CLUSTERPOOL_TARGET_NAMESPACE} has ClusterClaims with 'oc get clusterclaim -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        errorf "${RED}No ClusterClaims found in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${CLUSTERPOOL_TARGET_NAMESPACE} has ClusterClaims with 'oc get clusterclaim -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
     fi
     unset IFS
@@ -112,13 +117,13 @@ if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
     if [ "$selection" -lt "$i" ]; then
         CLUSTERCLAIM_NAME=${clusterclaim_names[$(($selection-1))]}
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 else
     oc get clusterclaim ${CLUSTERCLAIM_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterClaim named ${CLUSTERCLAIM_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterclaim -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+        errorf "${RED}Couldn't find a ClusterClaim named ${CLUSTERCLAIM_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterclaim -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -140,7 +145,7 @@ if [[ ! ("$selection" == "Y" || "$selection" == "y") ]]; then
 else
     oc delete clusterclaim -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERCLAIM_NAME
     if [[ "$?" -ne 0 ]]; then
-        printf "${RED}Failed to delete ClusterClaim $CLUSTERCLAIM_NAME, see above error message for more detail.${CLEAR}\n"
+        errorf "${RED}Failed to delete ClusterClaim $CLUSTERCLAIM_NAME, see above error message for more detail.${CLEAR}\n"
         exit 3
     fi
 fi
