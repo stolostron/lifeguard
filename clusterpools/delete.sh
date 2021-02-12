@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Error function for printing error messages to stderr
+errorf() {
+    printf >&2 "$@"
+}
+
 # Color codes for bash output
 BLUE='\e[36m'
 GREEN='\e[32m'
@@ -20,8 +25,8 @@ BASE64="base64 -w 0"
 if [ "${OS}" == "darwin" ]; then
     SED="gsed"
     if [ ! -x "$(command -v ${SED})"  ]; then
-       printf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
-       printf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
+       errorf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
+       errorf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
        exit 1
     fi
     BASE64="base64"
@@ -32,7 +37,7 @@ fi
 printf "${BLUE}* Testing connection${CLEAR}\n"
 HOST_URL=$(oc status | grep -o "https.*api.*")
 if [ $? -ne 0 ]; then
-    printf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
+    errorf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
     exit 2
 fi
 # Shorten to the basedomain and tell the user which cluster we're targetting
@@ -67,13 +72,13 @@ if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     if [ "$selection" -lt "$i" ]; then
         CLUSTERPOOL_TARGET_NAMESPACE=${project_names[$(($selection-1))]}
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
 oc get projects ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
+    errorf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
@@ -104,13 +109,13 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
     if [ "$selection" -lt "$i" ]; then
         CLUSTERPOOL_NAME=${clusterpool_names[$(($selection-1))]}
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 else
     oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+        errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -136,7 +141,7 @@ if [[ ! ("$selection" == "Y" || "$selection" == "y") ]]; then
 else
     oc delete clusterpool -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_NAME
     if [[ "$?" -ne 0 ]]; then
-        printf "${RED}Failed to delete ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
+        errorf "${RED}Failed to delete ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
         exit 3
     fi
 fi

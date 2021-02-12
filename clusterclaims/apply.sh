@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Error function for printing error messages to stderr
+errorf() {
+    printf >&2 "$@"
+}
+
 # Color codes for bash output
 BLUE='\e[36m'
 GREEN='\e[32m'
@@ -20,8 +25,8 @@ BASE64="base64 -w 0"
 if [ "${OS}" == "darwin" ]; then
     SED="gsed"
     if [ ! -x "$(command -v ${SED})"  ]; then
-       printf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
-       printf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
+       errorf "${RED}ERROR: $SED required, but not found.${CLEAR}\n"
+       errorf "${RED}Perform \"brew install gnu-sed\" and try again.${CLEAR}\n"
        exit 1
     fi
     BASE64="base64"
@@ -36,7 +41,7 @@ SHORTNAME=$(echo $USER | head -c 8)
 # User needs to be logged into the cluster
 printf "${BLUE}* Testing connection${CLEAR}\n"
 if (! oc status &>/dev/null); then
-    printf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
+    errorf "${RED}ERROR: Make sure you are logged into an OpenShift Container Platform before running this script${CLEAR}\n"
     exit 2
 fi
 HOST_URL=$(oc status | grep -o "https.*api.*")
@@ -89,19 +94,19 @@ if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
     if [ "$selection" -lt "$i" ]; then
         CLUSTERPOOL_TARGET_NAMESPACE=${project_names[$(($selection-1))]}
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
 fi
 oc get projects ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
+    errorf "${RED}Couldn't find a namespace named ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, validate your choice with 'oc get projects' and try again.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}* Using ${CLUSTERPOOL_TARGET_NAMESPACE}\n${CLEAR}"
 
 #----SELECT A CLUSTERPOOL TO CLAIM FROM----#
-if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
+while [[ "$CLUSTERPOOL_NAME" == "" ]]; do
     # Prompt the user to choose a ClusterImageSet
     clusterpools=$(oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE})
     clusterpool_names=()
@@ -119,26 +124,29 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
         fi
         i=$((i+1))
     done;
-    if [[ "$i" -lt 1 ]]; then
-        printf "${RED}No ClusterPools found in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${CLUSTERPOOL_TARGET_NAMESPACE} has ClusterPools with 'oc get clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
-        exit 3
-    fi
     unset IFS
+    new=$i
+    printf "($i)\tCreate a new ClusterPool\n"
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_NAME${CLEAR}\n"
     printf "${YELLOW}Enter the number corresponding to ClusterPool you want to claim a cluster from:${CLEAR} "
     read selection
-    if [ "$selection" -lt "$i" ]; then
+    if [ "$selection" -lt "$new" ]; then
         CLUSTERPOOL_NAME=${clusterpool_names[$(($selection-1))]}
+    elif [ "$selection" -eq "$new" ]; then
+        printf "${GREEN}* Creating a new ClusterPool using Lifeguard\n"
+        cd ../clusterpools
+        ./apply.sh
+        cd ../clusterclaims
+        printf "${GREEN}* Returning to choose a ClusterPool for your ClusterClaim\n${CLEAR}"
     else
-        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+        errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
         exit 3
     fi
-else
-    oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
-    if [[ $? -ne 0 ]]; then
-        printf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
-        exit 3
-    fi
+done
+oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
+if [[ $? -ne 0 ]]; then
+    errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+    exit 3
 fi
 printf "${GREEN}* Using: $CLUSTERPOOL_NAME${CLEAR}\n"
 
@@ -168,7 +176,7 @@ if [[ "$CLUSTERCLAIM_LIFETIME" == "" ]]; then
         if [ "$selection" != "" ]; then
             CLUSTERCLAIM_LIFETIME="${selection}h"
         else
-            printf "${RED}Empty lifetime entered. Exiting.\n${CLEAR}"
+            errorf "${RED}Empty lifetime entered. Exiting.\n${CLEAR}"
             exit 3
         fi
         printf "${GREEN}* Using Lifetime: $CLUSTERCLAIM_LIFETIME${CLEAR}\n"
@@ -217,7 +225,7 @@ if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
             printf "${YELLOW}Enter the name of your RBAC group: ${CLEAR}"
             read CLUSTERCLAIM_GROUP_NAME
             if [ "$CLUSTERCLAIM_GROUP_NAME" == "" ]; then
-                printf "${RED}No ClusterClaim group name entered (found empty string), exiting."
+                errorf "${RED}No ClusterClaim group name entered (found empty string), exiting."
                 exit 1
             fi
         else
@@ -243,7 +251,7 @@ if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
             if [ "$selection" -lt "$i" ]; then
                 CLUSTERCLAIM_GROUP_NAME=${group_names[$(($selection-1))]}
             else
-                printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+                errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
                 exit 3
             fi
         fi
@@ -290,7 +298,7 @@ cat ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 printf "\n"
 oc apply -f ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 if [[ $? -ne 0 ]]; then
-    printf "${RED}Couldn't apply ClusterClaim ${CLUSTERCLAIM_NAME} in ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, see the above error message for more details.${CLEAR}\n"
+    errorf "${RED}Couldn't apply ClusterClaim ${CLUSTERCLAIM_NAME} in ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, see the above error message for more details.${CLEAR}\n"
     exit 3
 fi
 printf "* ${GREEN}ClusterClaim ${CLUSTERCLAIM_NAME} on ${CLUSTERPOOL_NAME} successfully created, polling ${POLL_DURATION} seconds for claim to be fulfilled and cluster to become ready.\n${CLEAR}"
@@ -330,7 +338,7 @@ else
 fi
 poll_acc=0
 # Poll for claim to be fulfilled and ready
-while [[ ("$CC_PEND_CONDITION" != "False" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False") && "$poll_acc" -lt $POLL_DURATION ]]; do
+while [[ ("$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False") && "$poll_acc" -lt $POLL_DURATION ]]; do
     oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
     CC_NS=`jq -r '.spec.namespace' $CC_JSON`
     if [[ "$CC_NS" != "null" ]]; then
@@ -360,13 +368,13 @@ Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_COND
     poll_acc=$((poll_acc+30))
 done
 if [[ "$poll_acc" -ge $POLL_DURATION ]]; then
-    if [[ "$CC_PEND_CONDITION" != "False" ]]; then
-        printf "${RED}ClusterClaim is still pending.  This likely indicates that the pool didn't have available clusters in time or the ClusterClaim was invalid.${CLEAR}\n"
-        printf "${BLUE}Final Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
+    if [[ "$CC_PEND_CONDITION" == "True" ]]; then
+        errorf "${RED}ClusterClaim is still pending.  This likely indicates that the pool didn't have available clusters in time or the ClusterClaim was invalid.${CLEAR}\n"
+        errorf "${BLUE}Final Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
         exit 3
     else
-        printf "${RED}Cluster failed to come online.  This issue can likely be resolved by deleting this Claim and creating a new one for a fresh cluster.${CLEAR}\n"
-        printf "${BLUE}Final Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
+        errorf "${RED}Cluster failed to come online.  This issue can likely be resolved by deleting this Claim and creating a new one for a fresh cluster.${CLEAR}\n"
+        errorf "${BLUE}Final Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
         exit 3
     fi
 fi
