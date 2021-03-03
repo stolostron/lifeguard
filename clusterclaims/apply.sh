@@ -143,7 +143,7 @@ while [[ "$CLUSTERPOOL_NAME" == "" ]]; do
         exit 3
     fi
 done
-oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
+oc get clusterpool ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
     errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
     exit 3
