@@ -83,7 +83,7 @@ if [[ $? -ne 0 ]]; then
 fi
 printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
 
-REMOTE_CLAIMS=$(oc get clusterclaims -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers -o custom-columns="NAME:metadata.name")
+REMOTE_CLAIMS=$(oc get clusterclaims.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers -o custom-columns="NAME:metadata.name")
 LOCAL_CLAIMS=$(ls -d1 ./*/ | grep -v "templates\|backup" | sed 's/^\.\///' | sed 's/\/$//')
 DIFF_CLAIMS=$(comm -1 -3 <(echo "${REMOTE_CLAIMS}") <(echo "${LOCAL_CLAIMS}"))
 if [[ -n "${DIFF_CLAIMS}" ]]; then
@@ -134,7 +134,7 @@ fi
 
 if [[ -n "${REMOTE_CLAIMS}" ]]; then
     printf "${BLUE}* Re-initializing claim directories using remote ClusterClaims\n${CLEAR}"
-    REMOTE_CLAIMS=$(oc get clusterclaims -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers -o custom-columns="NAME:metadata.name")
+    REMOTE_CLAIMS=$(oc get clusterclaims.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers -o custom-columns="NAME:metadata.name")
     for CLUSTERCLAIM_NAME in ${REMOTE_CLAIMS}; do
         export CLUSTERPOOL_TARGET_NAMESPACE=${CLUSTERPOOL_TARGET_NAMESPACE}
         export CLUSTERCLAIM_NAME=${CLUSTERCLAIM_NAME}

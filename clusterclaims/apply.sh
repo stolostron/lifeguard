@@ -319,7 +319,7 @@ fi
 CC_JSON=$CLUSTERCLAIM_NAME/.ClusterClaim.json
 CD_JSON=$CLUSTERCLAIM_NAME/.ClusterDeployment.json
 CD_ERROR=${CD_JSON}.error
-oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
+oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
 CC_NS=`jq -r '.spec.namespace' $CC_JSON`
 if [[ "$CC_NS" != "null" ]]; then
     oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON 2> $CD_ERROR
@@ -339,7 +339,7 @@ fi
 poll_acc=0
 # Poll for claim to be fulfilled and ready
 while [[ ("$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False") && "$poll_acc" -lt $POLL_DURATION ]]; do
-    oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
+    oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
     CC_NS=`jq -r '.spec.namespace' $CC_JSON`
     if [[ "$CC_NS" != "null" ]]; then
         oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON 2> ${CD_ERROR}
