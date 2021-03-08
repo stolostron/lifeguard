@@ -126,7 +126,7 @@ Set `export RECONCILE_SILENT="true"` to bypass cleaning up the backup directory 
 #### Destroying a ClusterClaim and the Claimed Cluster
 
 To delete a ClusterClaim:
-**Note:** Deleting a ClusterClaim immediately deletes the cluster that was allocated to the claim.  You can view the claimed cluster via `oc get clusterclaims.hive <cluster-claim-name> -n <namespace> -o json | jq -r '.spec.namespace'`.  
+**Note:** Deleting a ClusterClaim immediately deletes the cluster that was allocated to the claim.  You can view the claimed cluster via `oc get clusterclaim.hive <cluster-claim-name> -n <namespace> -o json | jq -r '.spec.namespace'`.  
 1. `oc login` to the OCM/ACM/Hive cluster where your claim resides
 2. `cd clusterclaims` and run `delete.sh` (named for the `oc` command it will leverage)
 3. Follow the prompts, the script will guide you through the location and deletion of your clusterclaim
