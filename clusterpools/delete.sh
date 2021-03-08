@@ -86,7 +86,7 @@ printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
 #----SELECT A CLUSTERPOOL TO DELETE----#
 if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
     # Prompt the user to choose a ClusterImageSet
-    clusterpools=$(oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE})
+    clusterpools=$(oc get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE})
     clusterpool_names=()
     i=0
     IFS=$'\n'
@@ -113,9 +113,9 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
         exit 3
     fi
 else
-    oc get clusterpool ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
+    oc get clusterpool.hive ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+        errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
 fi

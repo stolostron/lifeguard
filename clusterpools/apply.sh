@@ -564,4 +564,4 @@ if [[ "$?" -ne 0 ]]; then
     errorf "${RED}Failed to create ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
     exit 3
 fi
-printf "${GREEN}ClusterPool ${CLUSTERPOOL_NAME} successfully created, run 'oc get clusterpool ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE}' to view your ClusterPool.${CLEAR}\n"
+printf "${GREEN}ClusterPool ${CLUSTERPOOL_NAME} successfully created, run 'oc get clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE}' to view your ClusterPool.${CLEAR}\n"
