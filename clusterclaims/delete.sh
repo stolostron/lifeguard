@@ -90,7 +90,7 @@ printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
 #----SELECT A CLUSTERCLAIM TO EXTRACT CREDENTIALS FROM----#
 if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
     # Prompt the user to choose a ClusterImageSet
-    clusterclaims=$(oc get clusterclaim -n ${CLUSTERPOOL_TARGET_NAMESPACE})
+    clusterclaims=$(oc get clusterclaim.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE})
     clusterclaim_names=()
     i=0
     IFS=$'\n'
@@ -107,7 +107,7 @@ if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
         i=$((i+1))
     done;
     if [[ "$i" -lt 1 ]]; then
-        errorf "${RED}No ClusterClaims found in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${CLUSTERPOOL_TARGET_NAMESPACE} has ClusterClaims with 'oc get clusterclaim -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
+        errorf "${RED}No ClusterClaims found in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}.  Please verify that ${CLUSTERPOOL_TARGET_NAMESPACE} has ClusterClaims with 'oc get clusterclaim.hive -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
     fi
     unset IFS
@@ -123,7 +123,7 @@ if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
 else
     oc get clusterclaim ${CLUSTERCLAIM_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
-        errorf "${RED}Couldn't find a ClusterClaim named ${CLUSTERCLAIM_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterclaim -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+        errorf "${RED}Couldn't find a ClusterClaim named ${CLUSTERCLAIM_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterclaim.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
     fi
 fi
@@ -132,7 +132,7 @@ printf "${GREEN}* Using: $CLUSTERCLAIM_NAME${CLEAR}\n"
 
 #-----VERIFY INTENT AND DELETE CLUSTERCLAIM-----#
 CC_JSON=$CLUSTERCLAIM_NAME/.ClusterClaim.json
-oc get clusterclaim ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
+oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
 clusterdeployment=`jq -r '.spec.namespace' $CC_JSON`
 if [[ "$CC_NS" != "null" ]]; then
     printf "${YELLOW}Deleting $CLUSTERCLAIM_NAME will destroy the cluster ${BLUE}$clusterdeployment${YELLOW}.${CLEAR}\n"
