@@ -139,7 +139,7 @@ if [[ ! ("$selection" == "Y" || "$selection" == "y") ]]; then
     printf "${GREEN} Deletion cancelled, exiting.${CLEAR}\n"
     exit 0
 else
-    oc delete clusterpool -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_NAME
+    oc  delete clusterpool.hive -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_NAME
     if [[ "$?" -ne 0 ]]; then
         errorf "${RED}Failed to delete ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
         exit 3
