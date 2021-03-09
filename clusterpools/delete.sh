@@ -122,7 +122,7 @@ fi
 printf "${GREEN}* Using: $CLUSTERPOOL_NAME${CLEAR}\n"
 
 #-----INFORM THE USER WHICH CLUSTERCLAIMS WOULD BE ORPHANED (WITHIN CLUSTERPOOL_TARGET_NAMESPACE)-----#
-clusterclaims=$(oc get clusterclaim -n $CLUSTERPOOL_TARGET_NAMESPACE -o json | jq --arg CLUSTERPOOLNAME "$CLUSTERPOOL_NAME" '.items[] | select(.spec.clusterPoolName==$CLUSTERPOOLNAME) | .metadata.name')
+clusterclaims=$(oc get clusterclaim.hive -n $CLUSTERPOOL_TARGET_NAMESPACE -o json | jq --arg CLUSTERPOOLNAME "$CLUSTERPOOL_NAME" '.items[] | select(.spec.clusterPoolName==$CLUSTERPOOLNAME) | .metadata.name')
 if [[ "$clusterclaims" != "" ]]; then
     printf "${YELLOW}The following ClusterClaims and their associated deployments will be orphaned if you delete $CLUSTERPOOL_NAME.${CLEAR}\n"
     i=1
