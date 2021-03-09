@@ -193,9 +193,18 @@ generate_installconfigsecret() {
     if [[ "$PLATFORM" == "AWS" ]]; then
         sed -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" ./templates/install-config.aws.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
     elif [[ "$PLATFORM" == "AZURE" ]]; then
-        sed -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" ./templates/install-config.azure.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+        sed -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" \
+            -e "s/__CLUSTERPOOL_BASE_DOMAIN_RESOURCE_GROUP_NAME__/$CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME/g" ./templates/install-config.azure.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
     elif [[ "$PLATFORM" == "GCP" ]]; then
-        sed -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" ./templates/install-config.gcp.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+        printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_GCP_PROJECT_ID${CLEAR}\n"
+        printf "${YELLOW}Enter the project ID of your project on GCP.  This can be found in your GCP json key or under the projects list in the GCP UI:${CLEAR} "
+        read CLUSTERPOOL_GCP_PROJECT_ID
+        if [[ "$CLUSTERPOOL_GCP_PROJECT_ID" == "" ]]; then
+            printf "${RED}No GCP Project ID specified.  Exiting."
+            exit 1
+        fi
+        sed -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" \
+            -e "s/__CLUSTERPOOL_GCP_PROJECT_ID__/$CLUSTERPOOL_GCP_PROJECT_ID/g" ./templates/install-config.gcp.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
     fi
     # Have the user interactively edit our install-config template to their liking
     ${EDITOR:-vi} "./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml"
