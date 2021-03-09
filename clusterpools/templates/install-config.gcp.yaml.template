@@ -26,6 +26,6 @@ networking:
   - 172.30.0.0/16
 platform:
   gcp:
-    projectID:
+    projectID: __CLUSTERPOOL_GCP_PROJECT_ID__
     region: __CLUSTERPOOL_GCP_REGION__
 pullSecret: "" # skip, hive will inject based on it's secrets

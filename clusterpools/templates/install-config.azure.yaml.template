@@ -34,6 +34,6 @@ networking:
   - 172.30.0.0/16
 platform:
   azure:
-    baseDomainResourceGroupName: 
+    baseDomainResourceGroupName:  __CLUSTERPOOL_BASE_DOMAIN_RESOURCE_GROUP_NAME__
     region: __CLUSTERPOOL_AZURE_REGION__
 pullSecret: "" # skip, hive will inject based on it's secrets
