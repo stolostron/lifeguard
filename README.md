@@ -88,7 +88,7 @@ CLUSTERPOOL_NAME - your chosen name for the clusterpool
 CLUSTERCLAIM_GROUP_NAME - RBAC group to associate with the ClusterClaim
 CLUSTERCLAIM_LIFETIME - lifetime for the cluster claim before automatic deletion, formatted as `1h2m3s` omitting units as desired (set to "false" to disable)
 ```
-**Note:** If you find that the above list does not fully automate clusterclaim creation, then we made a mistake or need to update the list!  Please let us know via a GitHub issue or contribute a patch! 
+**Note:** If you find that the above list does not fully automate ClusterClaim creation, then we made a mistake or need to update the list!  Please let us know via a GitHub issue or contribute a patch! 
 
 #### Configuring Your `subjects` List Correctly
 
@@ -109,7 +109,7 @@ Error from server (Forbidden): secrets "<clusterdeployment-name>-<identifier>-ad
 `apply.sh` will extract the credentials for the cluster you claimed and tell you how to access those credentials but, if you have a pre-existing claim, we have a utility script to handle _just_ credential extraction.  
 
 To extract the credentials from a pre-existing claim:
-1. `oc login` to the OCM/ACM/Hive cluster where your clusterclaim resides
+1. `oc login` to the OCM/ACM/Hive cluster where your ClusterClaim resides
 2. `cd clusterclaims` and run `get_credentials.sh` (named for the `oc` command it will leverage throughout, `get`)
 3. Follow the prompts, the script will guide you through the credentials extraction
 
@@ -126,7 +126,7 @@ Set `export RECONCILE_SILENT="true"` to bypass cleaning up the backup directory 
 #### Destroying a ClusterClaim and the Claimed Cluster
 
 To delete a ClusterClaim:
-**Note:** Deleting a ClusterClaim immediately deletes the cluster that was allocated to the claim.  You can view the claimed cluster via `oc get clusterclaim <cluster-claim-name> -n <namespace> -o json | jq -r '.spec.namespace'`.  
+**Note:** Deleting a ClusterClaim immediately deletes the cluster that was allocated to the claim.  You can view the claimed cluster via `oc get clusterclaim.hive <cluster-claim-name> -n <namespace> -o json | jq -r '.spec.namespace'`.  
 1. `oc login` to the OCM/ACM/Hive cluster where your claim resides
 2. `cd clusterclaims` and run `delete.sh` (named for the `oc` command it will leverage)
 3. Follow the prompts, the script will guide you through the location and deletion of your clusterclaim
