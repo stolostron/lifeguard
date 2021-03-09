@@ -108,7 +108,7 @@ printf "${GREEN}* Using ${CLUSTERPOOL_TARGET_NAMESPACE}\n${CLEAR}"
 #----SELECT A CLUSTERPOOL TO CLAIM FROM----#
 while [[ "$CLUSTERPOOL_NAME" == "" ]]; do
     # Prompt the user to choose a ClusterImageSet
-    clusterpools=$(oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE})
+    clusterpools=$(oc get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE})
     clusterpool_names=()
     i=0
     IFS=$'\n'
@@ -143,9 +143,9 @@ while [[ "$CLUSTERPOOL_NAME" == "" ]]; do
         exit 3
     fi
 done
-oc get clusterpool ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
+oc get clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
 if [[ $? -ne 0 ]]; then
-    errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpools -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
+    errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
     exit 3
 fi
 printf "${GREEN}* Using: $CLUSTERPOOL_NAME${CLEAR}\n"
@@ -282,7 +282,7 @@ fi
 
 
 #-----CHECK FOR AVAILABLE CLUSTERS-----#
-avail_clusters=$(oc get clusterpool ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json | jq -r '.status.ready')
+avail_clusters=$(oc get clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json | jq -r '.status.ready')
 if [[ "$avail_clusters" -eq 0 ]]; then
     printf "${BLUE}* No Clusters are available in ${CLUSTERPOOL_NAME}, polling for 60 minutes after claim creation for claim to be fulfilled and awake to allow for cluster provision to occur.${CLEAR}\n"
     POLL_DURATION=3600
