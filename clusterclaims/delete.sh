@@ -121,7 +121,7 @@ if [[ "$CLUSTERCLAIM_NAME" == "" ]]; then
         exit 3
     fi
 else
-    oc get clusterclaim ${CLUSTERCLAIM_NAME} --no-headers &> /dev/null
+    oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
         errorf "${RED}Couldn't find a ClusterClaim named ${CLUSTERCLAIM_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterclaim.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
@@ -143,7 +143,7 @@ if [[ ! ("$selection" == "Y" || "$selection" == "y") ]]; then
     printf "${GREEN} Deletion cancelled, exiting.${CLEAR}\n"
     exit 0
 else
-    oc delete clusterclaim -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERCLAIM_NAME
+    oc delete clusterclaim.hive -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERCLAIM_NAME
     if [[ "$?" -ne 0 ]]; then
         errorf "${RED}Failed to delete ClusterClaim $CLUSTERCLAIM_NAME, see above error message for more detail.${CLEAR}\n"
         exit 3
