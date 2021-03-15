@@ -609,7 +609,7 @@ if [[ "$YQ_INSTALLED" != "false" ]]; then
         CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME="${CLUSTERPOOL_NAME}-install-config-template"
     fi
     if [[ "$CLUSTERPOOL_INSTALL_CONFIG_FILE" == "" ]]; then
-        printf "${BLUE}- note: to skip this step in the future and create a new install-config secret from a file automatially, export CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
+        printf "${BLUE}- note: to skip this step in the future and create a new install-config secret from a file automatically, export CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
         if [[ "$CLUSTERPOOL_INSTALL_CONFIG_SECRET" == "" ]]; then
             printf "${BLUE}- note: to skip this step in the future and use a pre-existing install-config secret, export CLUSTERPOOL_INSTALL_CONFIG_SECRET${CLEAR}\n"
             printf  "${BLUE}- note: if you choose 'Y', you must have list permissions for secrets on the namespace '$CLUSTERPOOL_TARGET_NAMESPACE'.${CLEAR}\n"
