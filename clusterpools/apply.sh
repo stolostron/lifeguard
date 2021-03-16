@@ -18,6 +18,8 @@ if [[ "$COLOR" == "False" || "$COLOR" == "false" ]]; then
     YELLOW='\e[39m'
 fi
 
+
+#----HELPERS-----#
 generate_aws_secret() {
     if [[ "$AWS_ACCESS_KEY_ID" != "" && "$AWS_SECRET_ACCESS_KEY" != "" ]]; then
         printf "${YELLOW}Do you want to use the current values of the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (Y/N)?${CLEAR} "
@@ -187,6 +189,72 @@ generate_clusterimageset() {
     fi
 }
 
+generate_installconfigsecret() {
+    printf "${BLUE}- Copying a template for ${PLATFORM} to working directory.${CLEAR}\n"
+    if [[ ! -d ./${CLUSTERPOOL_NAME} ]]; then
+        mkdir ./${CLUSTERPOOL_NAME}
+    fi
+    # Copy templates
+    if [[ "$PLATFORM" == "AWS" ]]; then
+        sed -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" ./templates/install-config.aws.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+    elif [[ "$PLATFORM" == "AZURE" ]]; then
+        sed -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" \
+            -e "s/__CLUSTERPOOL_BASE_DOMAIN_RESOURCE_GROUP_NAME__/$CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME/g" ./templates/install-config.azure.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+    elif [[ "$PLATFORM" == "GCP" ]]; then
+        printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_GCP_PROJECT_ID${CLEAR}\n"
+        printf "${YELLOW}Enter the project ID of your project on GCP.  This can be found in your GCP json key or under the projects list in the GCP UI:${CLEAR} "
+        read CLUSTERPOOL_GCP_PROJECT_ID
+        if [[ "$CLUSTERPOOL_GCP_PROJECT_ID" == "" ]]; then
+            printf "${RED}No GCP Project ID specified.  Exiting."
+            exit 1
+        fi
+        sed -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" \
+            -e "s/__CLUSTERPOOL_GCP_PROJECT_ID__/$CLUSTERPOOL_GCP_PROJECT_ID/g" ./templates/install-config.gcp.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+    fi
+    # Have the user interactively edit our install-config template to their liking
+    ${EDITOR:-vi} "./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml"
+    # Make sure the regions are set correctly and update global config for region if not.
+    if [[ "$PLATFORM" == "AWS" && "$(yq e '.platform.aws.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" != "$CLUSTERPOOL_AWS_REGION" ]]; then
+        install_config_region=$(yq e '.platform.aws.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)
+        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region.${CLEAR}\n"
+        printf "${YELLOW}This region must match the clusterpool's region ($CLUSTERPOOL_AWS_REGION), do you want to change the clusterpools region to match your install config?  If not, we'll update your install config to match the clusterpool region. (Y/N) ${CLEAR}"
+        read selection
+        if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
+            CLUSTERPOOL_AWS_REGION=$install_config_region
+        else
+            yq e ".platform.aws.region=\"$CLUSTERPOOL_AWS_REGION\"" ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+        fi
+    elif [[ "$PLATFORM" == "AZURE" && "$(yq e '.platform.azure.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" != "$CLUSTERPOOL_AZURE_REGION" ]]; then
+        install_config_region=$(yq e '.platform.azure.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)
+        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region.${CLEAR}\n"
+        printf "${YELLOW}This region must match the clusterpool's region ($CLUSTERPOOL_AZURE_REGION), do you want to change the clusterpools region to match your install config?  If not, we'll update your install config to match the clusterpool region. (Y/N) ${CLEAR}"
+        read selection
+        if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
+            CLUSTERPOOL_AZURE_REGION=$install_config_region
+        else
+            yq e ".platform.azure.region=\"$CLUSTERPOOL_AZURE_REGION\"" ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+        fi
+    elif [[ "$PLATFORM" == "GCP" && "$(yq e '.platform.gcp.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" != "$CLUSTERPOOL_GCP_REGION" ]]; then
+        install_config_region=$(yq e '.platform.gcp.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)
+        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region.${CLEAR}\n"
+        printf "${YELLOW}This region must match the clusterpool's region ($CLUSTERPOOL_GCP_REGION), do you want to change the clusterpools region to match your install config?  If not, we'll update your install config to match the clusterpool region. (Y/N) ${CLEAR}"
+        read selection
+        if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
+            CLUSTERPOOL_GCP_REGION=$install_config_region
+        else
+            yq e ".platform.gcp.region=\"$CLUSTERPOOL_GCP_REGION\"" ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+        fi
+    fi
+    # Toggle spec.skipMachinePools if the user configured with 0 workers
+    if [[ $(yq e '.compute' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml) == "null"
+        || $(yq e '.compute | length' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml) == "0"
+        || $(yq e '.compute[0].replicas' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml) == "0" ]]; then
+        printf "${BLUE}- We detected that you have 0 worker nodes in your install-config, we're setting spec.skipMachinePools in your clusterpool yaml.${CLEAR}\n"
+        CLUSTERPOOL_SKIP_MACHINEPOOL="true"
+    fi
+    oc create secret generic $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME --from-file=install-config.yaml=./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml -n $CLUSTERPOOL_TARGET_NAMESPACE
+}
+
 # Fix sed issues on mac by using GSED and fix base64 issues on macos by omitting the -w 0 parameter
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 SED="sed"
@@ -199,6 +267,22 @@ if [ "${OS}" == "darwin" ]; then
        exit 1
     fi
     BASE64="base64"
+fi
+
+# Check for CLI dependencies (yq)
+if [[ "$(which yq)" == "" ]]; then
+    YQ_INSTALLED="false"
+    printf "${YELLOW}[Warning] running $0 without yq installed will disable custom install-config creation in this utility.${CLEAR}\n"
+    if [ "${OS}" == "darwin" ]; then
+        printf "${YELLOW}Run 'brew install yq' to install yq.${CLEAR}\n"
+    else
+        printf "${YELLOW}Install yq with your favorite package manager to silence this message and enable custom install-configs.${CLEAR}\n"
+    fi
+fi
+
+#-----CHECK FOR DRY RUN FLAG-----#
+if [[ "$1" == "--dry-run" ]]; then
+    CLUSTERPOOL_DRY_RUN="true"
 fi
 
 #----VALIDATE PREREQ----#
@@ -261,7 +345,7 @@ fi
 printf "${GREEN}* Using $CLUSTERPOOL_TARGET_NAMESPACE\n${CLEAR}"
 
 
-#----SELECT A cloud platform----#
+#----SELECT A CLOUD PLATFORM----#
 platforms=("AWS" "AZURE" "GCP")
 if [[ "$PLATFORM" == "" ]]; then
     # Prompt the user to choose a cloud platform to create a pool on
@@ -335,7 +419,7 @@ if [[ "$CLOUD_CREDENTIAL_SECRET" == "" ]]; then
         exit 3
     fi
 else
-    oc get secret ${CLOUD_CREDENTIAL_SECRET} --no-headers &> /dev/null
+    oc get secret ${CLOUD_CREDENTIAL_SECRET} -n $CLUSTERPOOL_TARGET_NAMESPACE --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
         errorf "${RED}Couldn't find a secret named ${CLOUD_CREDENTIAL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
@@ -378,7 +462,7 @@ if [[ "$OCP_PULL_SECRET" == "" ]]; then
         exit 3
     fi
 else
-    oc get secret ${OCP_PULL_SECRET} --no-headers &> /dev/null
+    oc get secret ${OCP_PULL_SECRET} -n $CLUSTERPOOL_TARGET_NAMESPACE --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
         errorf "${RED}Couldn't find a secret named ${OCP_PULL_SECRET} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace on ${HOST_URL}, validate your choice with 'oc get secrets -n $CLUSTERPOOL_TARGET_NAMESPACE' and try again.${CLEAR}\n"
         exit 3
@@ -510,14 +594,88 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
     if [[ "$INPUT_CLUSTERPOOL_NAME" == "" ]]; then
         CLUSTERPOOL_NAME="$GENERATED_CLUSTERPOOL_NAME-$(echo $PLATFORM | tr '[:upper:]' '[:lower:]')-$(echo $CLUSTERIMAGESET_NAME | sed 's/\.//g')"
     else
+        CUSTOM_CLUSTERPOOL_NAME="true"
         CLUSTERPOOL_NAME="$INPUT_CLUSTERPOOL_NAME"
     fi
 fi
 printf "${GREEN}* Using Name: $CLUSTERPOOL_NAME${CLEAR}\n"
 
 
+#-----OPTIONALLY CONFIGURE A CUSTOM INSTALL CONFIG SECRET-----#
+if [[ "$YQ_INSTALLED" != "false" ]]; then
+    if [[ "$CUSTOM_CLUSTERPOOL_NAME" == "true" ]]; then
+        CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME="${CLUSTERPOOL_NAME}-${RANDOM_IDENTIFIER}-install-config-template"
+    else
+        CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME="${CLUSTERPOOL_NAME}-install-config-template"
+    fi
+    if [[ "$CLUSTERPOOL_INSTALL_CONFIG_FILE" == "" ]]; then
+        printf "${BLUE}- note: to skip this step in the future and create a new install-config secret from a file automatically, export CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
+        if [[ "$CLUSTERPOOL_INSTALL_CONFIG_SECRET" == "" ]]; then
+            printf "${BLUE}- note: to skip this step in the future and use a pre-existing install-config secret, export CLUSTERPOOL_INSTALL_CONFIG_SECRET${CLEAR}\n"
+            printf  "${BLUE}- note: if you choose 'Y', you must have list permissions for secrets on the namespace '$CLUSTERPOOL_TARGET_NAMESPACE'.${CLEAR}\n"
+            printf "${YELLOW}Do you want to create a custom install-config.yaml for your clusterpool clusters? (Y/N) ${CLEAR}"
+            read selection
+            if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
+                # Prompt the user to select an install-config secret
+                secrets=$(oc get secret -n $CLUSTERPOOL_TARGET_NAMESPACE 2> /dev/null)
+                if [[ "$?" != "0" ]]; then
+                    printf "${BLUE}- It looks like you don't have access to list secrets in $CLUSTERPOOL_TARGET_NAMESPACE, so we won't try to create or set one (our query errored).${CLEAR}\n"
+                    printf "${YELLOW}Do you wish to continue without setting a custom install-config.yaml?${CLEAR}\n"
+                    read selection
+                    if [[ "$selection" != "Y" && "$selection" != "y" ]]; then
+                        printf "${BLUE}Exiting.\n${CLEAR}"
+                        exit 1
+                    fi
+                else
+                    secret_names=()
+                    i=0
+                    IFS=$'\n'
+                    for line in $secrets; do
+                        if [ $i -eq 0 ]; then
+                            printf "   \t$line\n"
+                        else
+                            printf "($i)\t$line\n"
+                            unset IFS
+                            line_list=($line)
+                            secret_names+=(${line_list[0]})
+                            IFS=$'\n'
+                        fi
+                        i=$((i+1))
+                    done;
+                    unset IFS
+                    new=$i
+                    printf "($i)\tCreate a new Install Config Secret (interactive).\n"
+                    printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
+                    printf "${YELLOW}Enter the number corresponding to your desired Install Config Secret from the list above:${CLEAR} "
+                    read selection
+                    if [ "$selection" -lt "$i" ]; then
+                        CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME=${secret_names[$(($selection-1))]}
+                    elif [ "$selection" -eq "$new" ]; then
+                        generate_installconfigsecret
+                    else
+                        printf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+                        exit 3
+                    fi
+                fi
+                CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME=$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME
+                printf "${GREEN}* Using: $CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME${CLEAR}\n"
+            fi
+        else
+            CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME=$CLUSTERPOOL_INSTALL_CONFIG_SECRET
+            printf "${GREEN}* Using: $CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME${CLEAR}\n"
+        fi
+    else
+        printf "${BLUE}* Creating an installConfigSecret from $CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
+        oc create secret generic $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME --from-file=install-config.yaml=${CLUSTERPOOL_INSTALL_CONFIG_FILE} -n $CLUSTERPOOL_TARGET_NAMESPACE
+        CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME=$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME
+        printf "${GREEN}* Using: $CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME${CLEAR}\n"
+    fi
+else
+    printf "${GREEN}* Skipping custom install-config, yq is not installed.${CLEAR}\n"
+fi
+
+
 #-----BUILD THE CLUSTERPOOL YAML-----#
-printf "\n${GREEN}#### Generating yaml and Creating ClusterPools"
 if [[ ! -d ./${CLUSTERPOOL_NAME} ]]; then
     mkdir ./${CLUSTERPOOL_NAME}
 fi
@@ -553,6 +711,25 @@ else
     errorf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}"
     exit 3
 fi
+# Add an install config secret if created
+if [[ "$CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME" ]]; then
+    echo "" >> ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    ${SED} -e "s/__CLUSTERPOOL_INSTALL_CONFIG_SECRET_REF__/$CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME/g" ./templates/clusterpool.installConfigSecretRef.yaml.template >> ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+fi
+# set spec.skipMachinePools
+if [[ "$CLUSTERPOOL_SKIP_MACHINEPOOL" == "true" ]]; then
+    echo "  skipMachinePools: True"
+fi
+
+
+#-----END CLUSTERPOOL PROCESS EARLY IF THIS IS A DRY RUN-----#
+if [[ "$CLUSTERPOOL_DRY_RUN" == "true" ]]; then
+    printf "${GREEN}'--dry-run' set, skipping pool creation.  You can find your pool yaml in $(pwd)/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml or as printed below.${CLEAR}\n"
+    cat ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    echo ""
+    exit 0
+fi
+
 
 #-----APPLY THE CLUSTERPOOL YAML-----#
 printf "${GREEN} Applying the following yaml to create your ClusterPool (./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml):\n${CLEAR}"
