@@ -17,7 +17,7 @@ compute:
   replicas: 3
   platform:
     azure:
-      type:  Standard_D2s_v3
+      type:  Standard_D4s_v3
       osDisk:
         diskSizeGB: 128
       zones:
