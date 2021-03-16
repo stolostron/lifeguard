@@ -665,7 +665,7 @@ if [[ "$YQ_INSTALLED" != "false" ]]; then
             printf "${GREEN}* Using: $CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME${CLEAR}\n"
         fi
     else
-        printf "${BLUE}* Creating and installConfigSecret from $CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
+        printf "${BLUE}* Creating an installConfigSecret from $CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
         oc create secret generic $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME --from-file=install-config.yaml=${CLUSTERPOOL_INSTALL_CONFIG_FILE} -n $CLUSTERPOOL_TARGET_NAMESPACE
         CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME=$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME
         printf "${GREEN}* Using: $CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME${CLEAR}\n"
