@@ -246,9 +246,9 @@ generate_installconfigsecret() {
         fi
     fi
     # Toggle spec.skipMachinePools if the user configured with 0 workers
-    if [[ $(yq e '.compute' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml) == "null"
-        || $(yq e '.compute | length' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml) == "0"
-        || $(yq e '.compute[0].replicas' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml) == "0" ]]; then
+    if [[ "$(yq e '.compute' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" == "null"
+        || "$(yq e '.compute | length' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" == "0"
+        || "$(yq e '.compute[0].replicas' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" == "0" ]]; then
         printf "${BLUE}- We detected that you have 0 worker nodes in your install-config, we're setting spec.skipMachinePools in your clusterpool yaml.${CLEAR}\n"
         CLUSTERPOOL_SKIP_MACHINEPOOL="true"
     fi
@@ -718,7 +718,7 @@ if [[ "$CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME" ]]; then
 fi
 # set spec.skipMachinePools
 if [[ "$CLUSTERPOOL_SKIP_MACHINEPOOL" == "true" ]]; then
-    echo "  skipMachinePools: True"
+    printf "\n  skipMachinePools: True" >> ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 fi
 
 
