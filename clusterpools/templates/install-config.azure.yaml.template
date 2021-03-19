@@ -9,7 +9,7 @@ controlPlane:
   platform:
     azure:
       osDisk:
-        diskSizeGB: 128
+        diskSizeGB: 64
       type:  Standard_D4s_v3
 compute:
 - hyperthreading: Enabled
@@ -19,7 +19,7 @@ compute:
     azure:
       type:  Standard_D4s_v3
       osDisk:
-        diskSizeGB: 128
+        diskSizeGB: 64
       zones:
       - "1"
       - "2"
