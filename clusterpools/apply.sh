@@ -189,17 +189,49 @@ generate_clusterimageset() {
     fi
 }
 
+validate_installconfig_region() {
+    # Make sure the user set global region matches that present in the install-config.  
+    # This function requries that you ahve CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME set along with your desired platform and region.  
+    if [[ "$PLATFORM" == "AWS" && "$(yq e '.platform.aws.region' $CLUSTERPOOL_INSTALL_CONFIG_FILE)" != "$CLUSTERPOOL_AWS_REGION" ]]; then
+        install_config_region=$(yq e '.platform.aws.region' $CLUSTERPOOL_INSTALL_CONFIG_FILE)
+        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region, this doesn't match your clusterpool region ($CLUSTERPOOL_AWS_REGION).  We're automatically updating your clusterpool region to $install_config_region.${CLEAR}\n"
+        CLUSTERPOOL_AWS_REGION=$install_config_region
+        printf "${GREEN}* Using AWS Region ${CLUSTERPOOL_AWS_REGION}${CLEAR}\n"
+    elif [[ "$PLATFORM" == "AZURE" && "$(yq e '.platform.azure.region' $CLUSTERPOOL_INSTALL_CONFIG_FILE)" != "$CLUSTERPOOL_AZURE_REGION" ]]; then
+        install_config_region=$(yq e '.platform.azure.region' $CLUSTERPOOL_INSTALL_CONFIG_FILE)
+        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region, this doesn't match your clusterpool region ($CLUSTERPOOL_AZURE_REGION).  We're automatically updating your clusterpool region to $install_config_region.${CLEAR}\n"
+        CLUSTERPOOL_AZURE_REGION=$install_config_region
+        printf "${GREEN}* Using Azure Region ${CLUSTERPOOL_AZURE_REGION}${CLEAR}\n"
+    elif [[ "$PLATFORM" == "GCP" && "$(yq e '.platform.gcp.region' $CLUSTERPOOL_INSTALL_CONFIG_FILE)" != "$CLUSTERPOOL_GCP_REGION" ]]; then
+        install_config_region=$(yq e '.platform.gcp.region' $CLUSTERPOOL_INSTALL_CONFIG_FILE)
+        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region, this doesn't match your clusterpool region ($CLUSTERPOOL_GCP_REGION).  We're automatically updating your clusterpool region to $install_config_region.${CLEAR}\n"
+        CLUSTERPOOL_GCP_REGION=$install_config_region
+        printf "${GREEN}* Using GCP Region ${CLUSTERPOOL_GCP_REGION}${CLEAR}\n"
+    fi
+}
+
+set_installconfig_skipmachinepools() {
+    # Toggle spec.skipMachinePools if the user configured with 0 workers
+    if [[ "$(yq e '.compute' $CLUSTERPOOL_INSTALL_CONFIG_FILE)" == "null"
+        || "$(yq e '.compute | length' $CLUSTERPOOL_INSTALL_CONFIG_FILE)" == "0"
+        || "$(yq e '.compute[0].replicas' $CLUSTERPOOL_INSTALL_CONFIG_FILE)" == "0" ]]; then
+        printf "${BLUE}- We detected that you have 0 worker nodes in your install-config, we're setting spec.skipMachinePools in your clusterpool yaml.${CLEAR}\n"
+        CLUSTERPOOL_SKIP_MACHINEPOOL="true"
+    fi
+}
+
 generate_installconfigsecret() {
+    CLUSTERPOOL_INSTALL_CONFIG_FILE=./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
     printf "${BLUE}- Copying a template for ${PLATFORM} to working directory.${CLEAR}\n"
     if [[ ! -d ./${CLUSTERPOOL_NAME} ]]; then
         mkdir ./${CLUSTERPOOL_NAME}
     fi
     # Copy templates
     if [[ "$PLATFORM" == "AWS" ]]; then
-        sed -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" ./templates/install-config.aws.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+        sed -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" ./templates/install-config.aws.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
     elif [[ "$PLATFORM" == "AZURE" ]]; then
         sed -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" \
-            -e "s/__CLUSTERPOOL_BASE_DOMAIN_RESOURCE_GROUP_NAME__/$CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME/g" ./templates/install-config.azure.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+            -e "s/__CLUSTERPOOL_BASE_DOMAIN_RESOURCE_GROUP_NAME__/$CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME/g" ./templates/install-config.azure.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
     elif [[ "$PLATFORM" == "GCP" ]]; then
         printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_GCP_PROJECT_ID${CLEAR}\n"
         printf "${YELLOW}Enter the project ID of your project on GCP.  This can be found in your GCP json key or under the projects list in the GCP UI:${CLEAR} "
@@ -209,50 +241,13 @@ generate_installconfigsecret() {
             exit 1
         fi
         sed -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" \
-            -e "s/__CLUSTERPOOL_GCP_PROJECT_ID__/$CLUSTERPOOL_GCP_PROJECT_ID/g" ./templates/install-config.gcp.yaml.template > ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+            -e "s/__CLUSTERPOOL_GCP_PROJECT_ID__/$CLUSTERPOOL_GCP_PROJECT_ID/g" ./templates/install-config.gcp.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
     fi
     # Have the user interactively edit our install-config template to their liking
-    ${EDITOR:-vi} "./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml"
-    # Make sure the regions are set correctly and update global config for region if not.
-    if [[ "$PLATFORM" == "AWS" && "$(yq e '.platform.aws.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" != "$CLUSTERPOOL_AWS_REGION" ]]; then
-        install_config_region=$(yq e '.platform.aws.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)
-        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region.${CLEAR}\n"
-        printf "${YELLOW}This region must match the clusterpool's region ($CLUSTERPOOL_AWS_REGION), do you want to change the clusterpools region to match your install config?  If not, we'll update your install config to match the clusterpool region. (Y/N) ${CLEAR}"
-        read selection
-        if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
-            CLUSTERPOOL_AWS_REGION=$install_config_region
-        else
-            yq e ".platform.aws.region=\"$CLUSTERPOOL_AWS_REGION\"" ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
-        fi
-    elif [[ "$PLATFORM" == "AZURE" && "$(yq e '.platform.azure.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" != "$CLUSTERPOOL_AZURE_REGION" ]]; then
-        install_config_region=$(yq e '.platform.azure.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)
-        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region.${CLEAR}\n"
-        printf "${YELLOW}This region must match the clusterpool's region ($CLUSTERPOOL_AZURE_REGION), do you want to change the clusterpools region to match your install config?  If not, we'll update your install config to match the clusterpool region. (Y/N) ${CLEAR}"
-        read selection
-        if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
-            CLUSTERPOOL_AZURE_REGION=$install_config_region
-        else
-            yq e ".platform.azure.region=\"$CLUSTERPOOL_AZURE_REGION\"" ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
-        fi
-    elif [[ "$PLATFORM" == "GCP" && "$(yq e '.platform.gcp.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" != "$CLUSTERPOOL_GCP_REGION" ]]; then
-        install_config_region=$(yq e '.platform.gcp.region' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)
-        printf "${YELLOW}It looks like you changed the 'region' in the install-config to $install_config_region.${CLEAR}\n"
-        printf "${YELLOW}This region must match the clusterpool's region ($CLUSTERPOOL_GCP_REGION), do you want to change the clusterpools region to match your install config?  If not, we'll update your install config to match the clusterpool region. (Y/N) ${CLEAR}"
-        read selection
-        if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
-            CLUSTERPOOL_GCP_REGION=$install_config_region
-        else
-            yq e ".platform.gcp.region=\"$CLUSTERPOOL_GCP_REGION\"" ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
-        fi
-    fi
-    # Toggle spec.skipMachinePools if the user configured with 0 workers
-    if [[ "$(yq e '.compute' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" == "null"
-        || "$(yq e '.compute | length' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" == "0"
-        || "$(yq e '.compute[0].replicas' ./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml)" == "0" ]]; then
-        printf "${BLUE}- We detected that you have 0 worker nodes in your install-config, we're setting spec.skipMachinePools in your clusterpool yaml.${CLEAR}\n"
-        CLUSTERPOOL_SKIP_MACHINEPOOL="true"
-    fi
-    oc create secret generic $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME --from-file=install-config.yaml=./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml -n $CLUSTERPOOL_TARGET_NAMESPACE
+    ${EDITOR:-vi} "$CLUSTERPOOL_INSTALL_CONFIG_FILE"
+    validate_installconfig_region
+    set_installconfig_skipmachinepools
+    oc create secret generic $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME --from-file=install-config.yaml=$CLUSTERPOOL_INSTALL_CONFIG_FILE -n $CLUSTERPOOL_TARGET_NAMESPACE
 }
 
 # Fix sed issues on mac by using GSED and fix base64 issues on macos by omitting the -w 0 parameter
@@ -650,6 +645,8 @@ if [[ "$YQ_INSTALLED" != "false" ]]; then
                     read selection
                     if [ "$selection" -lt "$i" ]; then
                         CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME=${secret_names[$(($selection-1))]}
+                        validate_installconfig_region
+                        set_installconfig_skipmachinepools
                     elif [ "$selection" -eq "$new" ]; then
                         generate_installconfigsecret
                     else
@@ -662,10 +659,17 @@ if [[ "$YQ_INSTALLED" != "false" ]]; then
             fi
         else
             CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME=$CLUSTERPOOL_INSTALL_CONFIG_SECRET
+            CLUSTERPOOL_INSTALL_CONFIG_FILE=./$CLUSTERPOOL_INSTALL_CONFIG_SECRET.yaml
+            oc get secret -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_INSTALL_CONFIG_SECRET -o json | jq -r '.data["install-config.yaml"]' | ${BASE64} -d > $CLUSTERPOOL_INSTALL_CONFIG_FILE
+            cat $CLUSTERPOOL_INSTALL_CONFIG_FILE
+            validate_installconfig_region
+            set_installconfig_skipmachinepools
             printf "${GREEN}* Using: $CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME${CLEAR}\n"
         fi
     else
         printf "${BLUE}* Creating an installConfigSecret from $CLUSTERPOOL_INSTALL_CONFIG_FILE${CLEAR}\n"
+        validate_installconfig_region
+        set_installconfig_skipmachinepools
         oc create secret generic $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME --from-file=install-config.yaml=${CLUSTERPOOL_INSTALL_CONFIG_FILE} -n $CLUSTERPOOL_TARGET_NAMESPACE
         CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME=$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME
         printf "${GREEN}* Using: $CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME${CLEAR}\n"
