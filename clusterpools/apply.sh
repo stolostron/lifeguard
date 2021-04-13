@@ -271,13 +271,16 @@ if [[ "$(which yq)" == "" ]]; then
     printf "${YELLOW}Would you like to continue creating a ClusterPool with the default install-config? (Y/N) ${CLEAR}"
     read selection
     if [[ "$selection" == "N" || "$selection" == "n" ]]; then
+        printf "${BLUE}* To enable custom install-config creation, install yq using "
         if [ "${OS}" == "darwin" ]; then
-            printf "${YELLOW}Run 'brew install yq' to install yq.${CLEAR}\n"
+            printf "'brew install yq'\n"
         else
-            printf "${YELLOW}Install yq with your favorite package manager to enable custom install-config.${CLEAR}\n"
+            printf "your favorite package manager\n"
         fi
-        printf "${YELLOW}Exiting.${CLEAR}"
+        printf "Exiting.${CLEAR}"
         exit 1
+    else
+        printf "${BLUE}* Continuing with the default custom install-config${CLEAR}\n"
     fi
 fi
 
