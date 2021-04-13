@@ -268,10 +268,16 @@ fi
 if [[ "$(which yq)" == "" ]]; then
     YQ_INSTALLED="false"
     printf "${YELLOW}[Warning] running $0 without yq installed will disable custom install-config creation in this utility.${CLEAR}\n"
-    if [ "${OS}" == "darwin" ]; then
-        printf "${YELLOW}Run 'brew install yq' to install yq.${CLEAR}\n"
-    else
-        printf "${YELLOW}Install yq with your favorite package manager to silence this message and enable custom install-configs.${CLEAR}\n"
+    printf "${YELLOW}Would you like to continue creating a ClusterPool with the default install-config? (Y/N) ${CLEAR}"
+    read selection
+    if [[ "$selection" == "N" || "$selection" == "n" ]]; then
+        if [ "${OS}" == "darwin" ]; then
+            printf "${YELLOW}Run 'brew install yq' to install yq.${CLEAR}\n"
+        else
+            printf "${YELLOW}Install yq with your favorite package manager to enable custom install-config.${CLEAR}\n"
+        fi
+        printf "${YELLOW}Exiting.${CLEAR}"
+        exit 1
     fi
 fi
 
