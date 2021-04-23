@@ -136,7 +136,7 @@ if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
 fi
 
 
-#-----POLLING FOR CLAIM FULFILLMENT AND CLUSTER UNHIBERNATE-----#
+#-----POLLING FOR CLAIM FULFILLMENT-----#
 # TODO: Eliminate the code duplication before this while loop by using a better looping construct
 #       Alas nothing is coming to mind at the moment.
 # Initialize loop variables
@@ -151,23 +151,12 @@ else
 fi
 CC_PEND_CONDITION=`jq -r '.status.conditions[]? | select(.type=="Pending").status' $CC_JSON`
 CC_PEND_REASON=`jq -r '.status.conditions[]? | select(.type=="Pending").reason' $CC_JSON`
-if [[ "$CD_JSON" != "" ]]; then
-    CD_HIB_CONDITION=`jq -r '.status.conditions[]? | select(.type=="Hibernating") | .status' $CD_JSON`
-    CD_HIB_REASON=`jq -r '.status.conditions[]? | select(.type=="Hibernating") | .reason' $CD_JSON`
-    CD_UNR_CONDITION=`jq -r '.status.conditions[]? | select(.type=="Unreachable") | .status' $CD_JSON`
-    CD_UNR_REASON=`jq -r '.status.conditions[]? | select(.type=="Unreachable") | .reason' $CD_JSON`
-else
-    CD_HIB_CONDITION=""
-    CD_HIB_REASON=""
-    CD_UNR_CONDITION=""
-    CD_UNR_REASON=""
-fi
-if [[ "$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False" ]]; then
-    errorf "${RED}Cluster is not ready, current state: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
-    errorf "${RED}Unable to extract credentials until cluster is claimed and ready.${CLEAR}\n"
+if [[ "$CC_PEND_CONDITION" == "True" ]]; then
+    errorf "${RED}Cluster is not ready, current state: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON]${CLEAR}\n"
+    errorf "${RED}Unable to extract credentials until cluster is claimed.${CLEAR}\n"
     exit 3
 fi
-printf "${GREEN}* Cluster ${CC_NS} online claimed by ${CLUSTERCLAIM_NAME}.${CLEAR}\n"
+printf "${GREEN}* Cluster ${CC_NS} claimed by ${CLUSTERCLAIM_NAME}.${CLEAR}\n"
 
 
 #-----EXTRACTING CLUSTER CREDENTIALS-----#
