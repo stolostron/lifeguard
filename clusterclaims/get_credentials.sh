@@ -136,7 +136,7 @@ if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
 fi
 
 
-#-----POLLING FOR CLAIM FULFILLMENT-----#
+#-----CHECKING FOR CLAIM FULFILLMENT-----#
 # TODO: Eliminate the code duplication before this while loop by using a better looping construct
 #       Alas nothing is coming to mind at the moment.
 # Initialize loop variables
