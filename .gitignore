@@ -4,6 +4,7 @@
 # Cluster files
 clusterpools/*/
 clusterclaims/*/
+cluterclaims/authfile
 !clusterpools/templates/
 !clusterclaims/templates/
 
