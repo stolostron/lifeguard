@@ -87,6 +87,10 @@ if [[ "$CLUSTERPOOL_TARGET_NAMESPACE" == "" ]]; then
         fi
         i=$((i+1))
     done;
+    if [ "${#project_names[*]}" -eq 0 ] ; then
+        errorf "${RED}There are no projects to choose from. Exiting.\n${CLEAR}"
+        exit 3
+    fi
     unset IFS
     printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_TARGET_NAMESPACE${CLEAR}\n"
     printf "${YELLOW}Enter the number corresponding to your desired Project/Namespace from the list above:${CLEAR} "
