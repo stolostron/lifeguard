@@ -658,8 +658,11 @@ if [[ "$YQ_INSTALLED" != "false" ]]; then
                     read selection
                     if [ "$selection" -lt "$i" ]; then
                         CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME=${secret_names[$(($selection-1))]}
+                        CLUSTERPOOL_INSTALL_CONFIG_FILE=./$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+                        oc get secret -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME -o json | jq -r '.data["install-config.yaml"]' | ${BASE64} --decode > $CLUSTERPOOL_INSTALL_CONFIG_FILE
                         validate_installconfig_region
                         set_installconfig_skipmachinepools
+                        rm -f $CLUSTERPOOL_INSTALL_CONFIG_FILE
                     elif [ "$selection" -eq "$new" ]; then
                         generate_installconfigsecret
                     else
