@@ -695,6 +695,57 @@ else
 fi
 
 
+#-----OPTIONALLY SELECT A MANAGEDCLUSTERSET-----#
+if [[ "$MANAGEDCLUSTERSET_NAME" == "" ]]; then
+    printf  "${BLUE}- note: unless you are cluster-admin with clusterwide access to resouces, specifying your managedclusterset is necessary to create a clusterpool on ACM 2.3+.${CLEAR}\n"
+    printf "${YELLOW}Do you want to create this ClusterPool in a ManagedClusterSet? (Y/N) ${CLEAR}"
+    read selection
+    if [[ "$selection" == "Y" || "$selection" == "y" ]]; then
+        # Prompt the user to choose a ManagedClusterSet
+        managedclustersets=$(oc get managedclustersets.clusterview -o=custom-columns=NAME:.metadata.name 2> /dev/null)
+        if [[ "$?" != "0" ]]; then
+            printf "${BLUE}- It looks like you don't have access to any ManagedClusterSets (our query errored).${CLEAR}\n"
+            printf "${YELLOW}Enter the name of your ManagedClusterSet: ${CLEAR}"
+            read MANAGEDCLUSTERSET_NAME
+            if [ "$MANAGEDCLUSTERSET_NAME" == "" ]; then
+                errorf "${RED}No ManagedClusterSet name entered (found empty string), exiting."
+                exit 1
+            fi
+        else
+            managedclusterset_names=()
+            i=0
+            IFS=$'\n'
+            for line in $managedclustersets; do
+                if [ $i -eq 0 ]; then
+                    printf "   \t$line\n"
+                else
+                    printf "($i)\t$line\n"
+                    unset IFS
+                    line_list=($line)
+                    managedclusterset_names+=(${line_list[0]})
+                    IFS=$'\n'
+                fi
+                i=$((i+1))
+            done;
+            unset IFS
+            printf "${BLUE}- note: to skip this step in the future, export MANAGEDCLUSTERSET_NAME${CLEAR}\n"
+            printf "${YELLOW}Enter the number corresponding to your desired ManagedClusterSet from the list above:${CLEAR} "
+            read selection
+            if [ "$selection" -lt "$i" ]; then
+                MANAGEDCLUSTERSET_NAME=${managedclusterset_names[$(($selection-1))]}
+            else
+                errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
+                exit 3
+            fi
+        fi
+        printf "${GREEN}* Using: $MANAGEDCLUSTERSET_NAME${CLEAR}\n"
+    fi
+else
+    printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
+fi
+
+
+
 #-----BUILD THE CLUSTERPOOL YAML-----#
 if [[ ! -d ./${CLUSTERPOOL_NAME} ]]; then
     mkdir ./${CLUSTERPOOL_NAME}
@@ -739,6 +790,10 @@ fi
 # set spec.skipMachinePools
 if [[ "$CLUSTERPOOL_SKIP_MACHINEPOOL" == "true" ]]; then
     printf "\n  skipMachinePools: True" >> ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+fi
+# add a ManagedClusterSet if specified
+if [[ "$MANAGEDCLUSTERSET_NAME" ]]; then
+    MANAGEDCLUSTERSET_NAME="'cluster.open-cluster-management.io/clusterset: $MANAGEDCLUSTERSET_NAME'" yq e '.metadata.labels = [env(MANAGEDCLUSTERSET_NAME)]' -i ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 fi
 
 
