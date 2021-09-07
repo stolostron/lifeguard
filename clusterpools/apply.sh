@@ -793,7 +793,7 @@ if [[ "$CLUSTERPOOL_SKIP_MACHINEPOOL" == "true" ]]; then
 fi
 # add a ManagedClusterSet if specified
 if [[ "$MANAGEDCLUSTERSET_NAME" ]]; then
-    MANAGEDCLUSTERSET_NAME="'cluster.open-cluster-management.io/clusterset: $MANAGEDCLUSTERSET_NAME'" yq e '.metadata.labels = [env(MANAGEDCLUSTERSET_NAME)]' -i ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    MANAGEDCLUSTERSET_NAME=$MANAGEDCLUSTERSET_NAME yq e '.metadata.labels["cluster.open-cluster-management.io/clusterset"] = env(MANAGEDCLUSTERSET_NAME)' -i ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 fi
 
 
