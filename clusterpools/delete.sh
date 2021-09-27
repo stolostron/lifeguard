@@ -113,7 +113,7 @@ if [[ "$CLUSTERPOOL_NAME" == "" ]]; then
         exit 3
     fi
 else
-    oc get clusterpool.hive ${CLUSTERPOOL_NAME} --no-headers &> /dev/null
+    oc get clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --no-headers &> /dev/null
     if [[ $? -ne 0 ]]; then
         errorf "${RED}Couldn't find a ClusterPool named ${CLUSTERPOOL_NAME} on ${HOST_URL} in the ${CLUSTERPOOL_TARGET_NAMESPACE} namespace, validate your choice with 'oc get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE}' and try again.${CLEAR}\n"
         exit 3
