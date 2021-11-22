@@ -36,6 +36,7 @@ fi
 # Generate a 5-digit random cluster identifier for resource tagging purposes
 RANDOM_IDENTIFIER=$(head /dev/urandom | LC_CTYPE=C tr -dc "[:lower:][:digit:]" | head -c 5 ; echo '')
 SHORTNAME=$(echo $USER | head -c 8)
+CLUSTERCLAIM_AUTO_IMPORT=${CLUSTERCLAIM_AUTO_IMPORT:-"false"}
 
 #----VALIDATE PREREQ----#
 # User needs to be logged into the cluster
@@ -192,16 +193,15 @@ fi
 if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
     mkdir ./$CLUSTERCLAIM_NAME
 fi
+TEMPLATE_FILE=./templates/clusterclaim.lifetime.yaml.template
 if [[ "$CLUSTERCLAIM_LIFETIME" == "" || "$CLUSTERCLAIM_LIFETIME" == "false" ]]; then
-    ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
-            -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
-            -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.nolifetime.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
-else
-    ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
-            -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
-            -e "s/__CLUSTERCLAIM_LIFETIME__/$CLUSTERCLAIM_LIFETIME/g" \
-            -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" ./templates/clusterclaim.lifetime.yaml.template > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    TEMPLATE_FILE=./templates/clusterclaim.nolifetime.yaml.template
 fi
+${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
+        -e "s/__CLUSTERCLAIM_AUTO_IMPORT__/$CLUSTERCLAIM_AUTO_IMPORT/g" \
+        -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
+        -e "s/__CLUSTERCLAIM_LIFETIME__/$CLUSTERCLAIM_LIFETIME/g" \
+        -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" $TEMPLATE_FILE > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 
 
 #-----DETECT IF THE USER IS USING A SERVICE ACCOUNT - IF SO SET SUBJECT-----#

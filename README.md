@@ -87,6 +87,7 @@ CLUSTERCLAIM_NAME - chosen name for the ClusterClaim, must be unique and not con
 CLUSTERPOOL_NAME - your chosen name for the clusterpool
 CLUSTERCLAIM_GROUP_NAME - RBAC group to associate with the ClusterClaim
 CLUSTERCLAIM_LIFETIME - lifetime for the cluster claim before automatic deletion, formatted as `1h2m3s` omitting units as desired (set to "false" to disable)
+CLUSTERCLAIM_AUTO_IMPORT - set to "true" if you want the cluster imported into Advanced Cluster Management (defaults to "false"; no prompting)
 ```
 **Note:** If you find that the above list does not fully automate ClusterClaim creation, then we made a mistake or need to update the list!  Please let us know via a GitHub issue or contribute a patch! 
 
