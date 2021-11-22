@@ -4,6 +4,6 @@ metadata:
   name: __CLUSTERCLAIM_NAME__
   namespace: __CLUSTERPOOL_TARGET_NAMESPACE__
   annotations:
-    open-cluster-management.io/createmanagedcluster: "__CLUSTERCLAIM_AUTO_IMPORT__"
+    cluster.open-cluster-management.io/createmanagedcluster: "__CLUSTERCLAIM_AUTO_IMPORT__"
 spec:
   clusterPoolName: __CLUSTERPOOL_NAME__
