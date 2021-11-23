@@ -3,8 +3,8 @@ kind: ClusterClaim
 metadata:
   name: __CLUSTERCLAIM_NAME__
   namespace: __CLUSTERPOOL_TARGET_NAMESPACE__
-    annotations:
-      cluster.open-cluster-management.io/createmanagedcluster: "__CLUSTERCLAIM_AUTO_IMPORT__"
+  annotations:
+    cluster.open-cluster-management.io/createmanagedcluster: "__CLUSTERCLAIM_AUTO_IMPORT__"
 spec:
   clusterPoolName: __CLUSTERPOOL_NAME__
   lifetime: __CLUSTERCLAIM_LIFETIME__
