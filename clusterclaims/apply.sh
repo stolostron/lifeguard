@@ -229,7 +229,7 @@ if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
             printf "${YELLOW}Enter the name of your RBAC group: ${CLEAR}"
             read CLUSTERCLAIM_GROUP_NAME
             if [ "$CLUSTERCLAIM_GROUP_NAME" == "" ]; then
-                errorf "${RED}No ClusterClaim group name entered (found empty string), exiting."
+                errorf "${RED}No ClusterClaim group name entered (found empty string), exiting.${CLEAR}\n"
                 exit 1
             fi
         else
@@ -341,14 +341,20 @@ else
     CD_UNR_CONDITION=""
 fi
 poll_acc=0
+err_count=0
 # Poll for claim to be fulfilled and ready
 while [[ ("$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" != "False" || "$CD_UNR_CONDITION" != "False") && "$poll_acc" -lt $POLL_DURATION ]]; do
-    oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
+    oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON 2> ${CC_ERROR}
+    if (( $poll_acc > 0 && $? > 0 )); then
+        printf "${BLUE}  Error getting ClusterClaim: $(cat ${CC_ERROR})\n"
+        err_count=$((err_count+1))
+    fi
     CC_NS=`jq -r '.spec.namespace' $CC_JSON`
     if [[ "$CC_NS" != "null" ]]; then
         oc get clusterdeployment $CC_NS -n $CC_NS -o json > $CD_JSON 2> ${CD_ERROR}
         if (( $poll_acc > 0 && $? > 0 )); then
             printf "${BLUE}  Error getting ClusterDeployment: $(cat ${CD_ERROR})\n"
+            err_count=$((err_count+1))
         fi
     else
         echo "" > $CD_JSON
@@ -365,6 +371,10 @@ while [[ ("$CC_PEND_CONDITION" == "True" || "$CD_HIB_CONDITION" != "False" || "$
         CD_HIB_REASON=""
         CD_UNR_CONDITION=""
         CD_UNR_REASON=""
+    fi
+    if (( $err_count > 4 )); then
+        printf "${RED}Encountered repeated errors while fetching ClusterClaim or ClusterDeployment.${CLEAR}\n"
+        exit 1
     fi
     printf "${BLUE}* Waited ($poll_acc/$POLL_DURATION) seconds for claim to be fulfilled and cluster to become ready. \
 Status: [Pending: $CC_PEND_CONDITION:$CC_PEND_REASON] [Hibernating: $CD_HIB_CONDITION:$CD_HIB_REASON] [Unreachable: $CD_UNR_CONDITION:$CD_UNR_REASON]${CLEAR}\n"
