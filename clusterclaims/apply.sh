@@ -321,6 +321,7 @@ fi
 #       Alas nothing is coming to mind at the moment.
 # Initialize loop variables
 CC_JSON=$CLUSTERCLAIM_NAME/.ClusterClaim.json
+CC_ERROR=${CC_JSON}.error
 CD_JSON=$CLUSTERCLAIM_NAME/.ClusterDeployment.json
 CD_ERROR=${CD_JSON}.error
 oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o json > $CC_JSON
