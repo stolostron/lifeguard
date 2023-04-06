@@ -42,7 +42,7 @@ generate_aws_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-aws-creds to contain your AWS Credentials for Cluster Provisions.${CLEAR}\n"
     oc create secret generic $SHORTNAME-aws-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-literal=aws_access_key_id=$AWS_ACCESS_KEY_ID_UNENCODED --from-literal=aws_secret_access_key=$AWS_SECRET_ACCESS_KEY_UNENCODED
     if [[ "$?" != "0" ]]; then
-        errorf "${RED}Unable to create AWS Credentials Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create AWS Credentials Secret. See above message for errors.  Exiting.${CLEAR}\n"
         exit 3
     fi
     CLOUD_CREDENTIAL_SECRET=$SHORTNAME-aws-creds
@@ -86,7 +86,7 @@ generate_azure_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-azure-creds to contain your Azure Credentials for Cluster Provisions.${CLEAR}\n"
     oc create secret generic $SHORTNAME-azure-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$AZURE_SERVICE_PRINCIPLE_JSON
     if [[ "$?" != "0" ]]; then
-        errorf "${RED}Unable to create Azure Credentials Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create Azure Credentials Secret. See above message for errors.  Exiting.${CLEAR}\n"
         exit 3
     fi
     CLOUD_CREDENTIAL_SECRET=$SHORTNAME-azure-creds
@@ -120,7 +120,7 @@ generate_gcp_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-gcp-creds to contain your GCP Credentials for Cluster Provisions.${CLEAR}\n"
     oc create secret generic $SHORTNAME-gcp-creds -n ${CLUSTERPOOL_TARGET_NAMESPACE} --from-file=osServicePrincipal.json=$GCP_SERVICE_ACCOUNT_JSON
     if [[ "$?" != "0" ]]; then
-        errorf "${RED}Unable to create GCP Credentials Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create GCP Credentials Secret. See above message for errors.  Exiting.${CLEAR}\n"
         exit 3
     fi
     CLOUD_CREDENTIAL_SECRET=$SHORTNAME-gcp-creds
@@ -148,7 +148,7 @@ generate_openshift_pull_secret() {
     printf "${BLUE}Creating a new secret in the namespace ${CLUSTERPOOL_TARGET_NAMESPACE} named ${SHORTNAME}-ocp-pull-secret to contain your OCP Pull Secret for Cluster Provisions.${CLEAR}\n"
     oc create secret generic ${SHORTNAME}-ocp-pull-secret --from-file=.dockerconfigjson=$OCP_PULL_SECRET --type=kubernetes.io/dockerconfigjson --namespace ${CLUSTERPOOL_TARGET_NAMESPACE}
     if [[ "$?" != "0" ]]; then
-        errorf "${RED}Unable to create OCP Pull Secret. See above message for errors.  Exiting."
+        errorf "${RED}Unable to create OCP Pull Secret. See above message for errors.  Exiting${CLEAR}\n."
         exit 3
     fi
     OCP_PULL_SECRET=${SHORTNAME}-ocp-pull-secret
@@ -237,7 +237,7 @@ generate_installconfigsecret() {
         printf "${YELLOW}Enter the project ID of your project on GCP.  This can be found in your GCP json key or under the projects list in the GCP UI:${CLEAR} "
         read CLUSTERPOOL_GCP_PROJECT_ID
         if [[ "$CLUSTERPOOL_GCP_PROJECT_ID" == "" ]]; then
-            printf "${RED}No GCP Project ID specified.  Exiting."
+            printf "${RED}No GCP Project ID specified.  Exiting.${CLEAR}\n"
             exit 1
         fi
         sed -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" \
@@ -708,7 +708,7 @@ if [[ "$MANAGEDCLUSTERSET_NAME" == "" ]]; then
             printf "${YELLOW}Enter the name of your ManagedClusterSet: ${CLEAR}"
             read MANAGEDCLUSTERSET_NAME
             if [ "$MANAGEDCLUSTERSET_NAME" == "" ]; then
-                errorf "${RED}No ManagedClusterSet name entered (found empty string), exiting."
+                errorf "${RED}No ManagedClusterSet name entered (found empty string), exiting.${CLEAR}\n"
                 exit 1
             fi
         else
