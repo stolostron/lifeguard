@@ -5,6 +5,8 @@ errorf() {
     printf >&2 "$@"
 }
 
+CLUSTERCLAIMS_DIRECTORY=${CLUSTERCLAIMS_DIRECTORY:-.}
+
 # Color codes for bash output
 BLUE='\e[36m'
 GREEN='\e[32m'
@@ -193,9 +195,9 @@ fi
 if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
     mkdir ./$CLUSTERCLAIM_NAME
 fi
-TEMPLATE_FILE=./templates/clusterclaim.lifetime.yaml.template
+TEMPLATE_FILE=$CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.lifetime.yaml.template
 if [[ "$CLUSTERCLAIM_LIFETIME" == "" || "$CLUSTERCLAIM_LIFETIME" == "false" ]]; then
-    TEMPLATE_FILE=./templates/clusterclaim.nolifetime.yaml.template
+    TEMPLATE_FILE=$CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.nolifetime.yaml.template
 fi
 ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
         -e "s/__CLUSTERCLAIM_AUTO_IMPORT__/$CLUSTERCLAIM_AUTO_IMPORT/g" \
@@ -211,7 +213,7 @@ if [[ $(oc whoami | awk -F ":" '{print $2}') == "serviceaccount" ]]; then
     echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     ${SED} -e "s/__RBAC_SERVICEACCOUNT_NAME__/$CLUSTERCLAIM_SERVICE_ACCOUNT/g" \
         -e "s/__CLUSTERCLAIM_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
-        ./templates/clusterclaim.subject.serviceaccount.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        $CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.subject.serviceaccount.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 fi
 
 
@@ -264,7 +266,7 @@ if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
         if [[ "$CLUSTERCLAIM_SERVICE_ACCOUNT" == "" ]]; then
             echo "  subjects:" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
         fi
-        ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" $CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     fi
 else
     printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
@@ -272,7 +274,7 @@ else
     if [[ "$CLUSTERCLAIM_SERVICE_ACCOUNT" == "" ]]; then
         echo "  subjects:" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     fi
-    ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" $CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 fi
 
 
