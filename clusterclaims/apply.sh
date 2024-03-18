@@ -5,6 +5,9 @@ errorf() {
     printf >&2 "$@"
 }
 
+CLUSTERCLAIMS_DIRECTORY=${CLUSTERCLAIMS_DIRECTORY:-$(readlink -f .)}
+LIFEGUARD_DIRECTORY=${LIFEGUARD_DIRECTORY:-$(readlink -f ..)}
+
 # Color codes for bash output
 BLUE='\e[36m'
 GREEN='\e[32m'
@@ -139,9 +142,7 @@ while [[ "$CLUSTERPOOL_NAME" == "" ]]; do
         CLUSTERPOOL_NAME=${clusterpool_names[$(($selection-1))]}
     elif [ "$selection" -eq "$new" ]; then
         printf "${GREEN}* Creating a new ClusterPool using Lifeguard\n"
-        cd ../clusterpools
-        ./apply.sh
-        cd ../clusterclaims
+        $LIFEGUARD_DIRECTORY/clusterpools/apply.sh
         printf "${GREEN}* Returning to choose a ClusterPool for your ClusterClaim\n${CLEAR}"
     else
         errorf "${RED}Invalid Choice. Exiting.\n${CLEAR}"
@@ -190,28 +191,28 @@ fi
 
 
 #-----GENERATE THE INITIAL YAML-----#
-if [[ ! -d ./$CLUSTERCLAIM_NAME ]]; then
-    mkdir ./$CLUSTERCLAIM_NAME
+if [[ ! -d $CLUSTERCLAIMS_DIRECTORY/$CLUSTERCLAIM_NAME ]]; then
+    mkdir $CLUSTERCLAIMS_DIRECTORY/$CLUSTERCLAIM_NAME
 fi
-TEMPLATE_FILE=./templates/clusterclaim.lifetime.yaml.template
+TEMPLATE_FILE=$CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.lifetime.yaml.template
 if [[ "$CLUSTERCLAIM_LIFETIME" == "" || "$CLUSTERCLAIM_LIFETIME" == "false" ]]; then
-    TEMPLATE_FILE=./templates/clusterclaim.nolifetime.yaml.template
+    TEMPLATE_FILE=$CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.nolifetime.yaml.template
 fi
 ${SED} -e "s/__CLUSTERCLAIM_NAME__/$CLUSTERCLAIM_NAME/g" \
         -e "s/__CLUSTERCLAIM_AUTO_IMPORT__/$CLUSTERCLAIM_AUTO_IMPORT/g" \
         -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
         -e "s/__CLUSTERCLAIM_LIFETIME__/$CLUSTERCLAIM_LIFETIME/g" \
-        -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" $TEMPLATE_FILE > ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" $TEMPLATE_FILE > $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 
 
 #-----DETECT IF THE USER IS USING A SERVICE ACCOUNT - IF SO SET SUBJECT-----#
 if [[ $(oc whoami | awk -F ":" '{print $2}') == "serviceaccount" ]]; then
     printf "${GREEN}* ServiceAccount use Detected, automatically adding ServiceAccount as a Subject${CLEAR}\n"
     CLUSTERCLAIM_SERVICE_ACCOUNT="$(oc whoami | awk -F ":" '{print $4}')"
-    echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    echo "" >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     ${SED} -e "s/__RBAC_SERVICEACCOUNT_NAME__/$CLUSTERCLAIM_SERVICE_ACCOUNT/g" \
         -e "s/__CLUSTERCLAIM_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
-        ./templates/clusterclaim.subject.serviceaccount.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        $CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.subject.serviceaccount.yaml.template >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 fi
 
 
@@ -260,26 +261,26 @@ if [[ "$CLUSTERCLAIM_GROUP_NAME" == "" ]]; then
             fi
         fi
         printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
-        echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        echo "" >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
         if [[ "$CLUSTERCLAIM_SERVICE_ACCOUNT" == "" ]]; then
-            echo "  subjects:" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+            echo "  subjects:" >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
         fi
-        ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" $CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.subject.yaml.template >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     fi
 else
     printf "${GREEN}* Using: $CLUSTERCLAIM_GROUP_NAME${CLEAR}\n"
-    echo "" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    echo "" >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     if [[ "$CLUSTERCLAIM_SERVICE_ACCOUNT" == "" ]]; then
-        echo "  subjects:" >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+        echo "  subjects:" >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     fi
-    ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" ./templates/clusterclaim.subject.yaml.template >> ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    ${SED} -e "s/__RBAC_GROUP_NAME__/$CLUSTERCLAIM_GROUP_NAME/g" $CLUSTERCLAIMS_DIRECTORY/templates/clusterclaim.subject.yaml.template >> $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 fi
 
 
 #-----END CLUSTERCLAIM PROCESS EARLY IF THIS IS A DRY RUN-----#
 if [[ "$CLUSTERCLAIM_DRY_RUN" == "true" ]]; then
     printf "${GREEN}'--dry-run' set, skipping claim creation.  You can find your clusterclaim yaml in $(pwd)/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml or as printed below.${CLEAR}\n"
-    cat ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+    cat $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
     echo ""
     exit 0
 fi
@@ -298,9 +299,9 @@ fi
 
 #-----APPLYING THE CLUSTERCLAIM YAML-----#
 printf "${BLUE}* Applying the following ClusterClaim yaml:${CLEAR}\n"
-cat ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+cat $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 printf "\n"
-oc apply -f ./${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
+oc apply -f $CLUSTERCLAIMS_DIRECTORY/${CLUSTERCLAIM_NAME}/${CLUSTERCLAIM_NAME}.clusterclaim.yaml
 if [[ $? -ne 0 ]]; then
     errorf "${RED}Couldn't apply ClusterClaim ${CLUSTERCLAIM_NAME} in ${CLUSTERPOOL_TARGET_NAMESPACE} on ${HOST_URL}, see the above error message for more details.${CLEAR}\n"
     exit 3

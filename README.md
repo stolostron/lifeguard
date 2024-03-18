@@ -13,6 +13,7 @@ If you don't want colorized output or are using automation/a shell that can't sh
 ## Installing as an `oc` Extension
 
 You can easily install a basic version of `lifeguard` as an oc extension by running `make install-oc-extension`.  If you wish to uninstall these `oc` extensions at a later date - simply run `make uninstall-oc-extension`.  
+You can change the installation directory by modifying the environment variable `$INSTALL_DIRECTORY`. The default location is `/usr/local/bin` 
 
 ## Prereqs
 
