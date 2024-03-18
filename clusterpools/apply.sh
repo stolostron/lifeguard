@@ -5,6 +5,9 @@ errorf() {
     printf >&2 "$@"
 }
 
+CLUSTERPOOLS_DIRECTORY=${CLUSTERPOOLS_DIRECTORY:-$(readlink -f .)}
+LIFEGUARD_DIRECTORY=${LIFEGUARD_DIRECTORY:-$(readlink -f ..)}
+
 # Color codes for bash output
 BLUE='\e[36m'
 GREEN='\e[32m'
@@ -127,7 +130,7 @@ generate_gcp_secret() {
 }
 
 generate_openshift_pull_secret() {
-    OCP_PULL_SECRET=${OCP_PULL_SECRET:-"./pull-secret.txt"}
+    OCP_PULL_SECRET=${OCP_PULL_SECRET:-CLUSTERPOOLS_DIRECTORY/pull-secret.txt}
     if [[ -f $OCP_PULL_SECRET ]]; then
         printf "${YELLOW}Do you want to use the pull secret stored in $OCP_PULL_SECRET (Y/N)?${CLEAR} "
         read selection
@@ -178,11 +181,11 @@ generate_clusterimageset() {
         mkdir $CLUSTERIMAGESET_NAME-clusterimageset
     fi
     ${SED} -e "s|__CLUSTERIMAGESET_NAME__|$CLUSTERIMAGESET_NAME|g" \
-           -e "s|__CLUSTERIMAGESET_RELEASE_IMAGE__|$CLUSTERIMAGESET_RELEASE_IMAGE|g" ./templates/clusterimageset.yaml.template > ./${CLUSTERIMAGESET_NAME}-clusterimageset/${CLUSTERIMAGESET_NAME}.clusterimageset.yaml
+           -e "s|__CLUSTERIMAGESET_RELEASE_IMAGE__|$CLUSTERIMAGESET_RELEASE_IMAGE|g" $CLUSTERPOOLS_DIRECTORY/templates/clusterimageset.yaml.template > $CLUSTERPOOLS_DIRECTORY/${CLUSTERIMAGESET_NAME}-clusterimageset/${CLUSTERIMAGESET_NAME}.clusterimageset.yaml
     printf "${BLUE}* Applying the ClusterImageSet yaml:\n"
-    cat ./${CLUSTERIMAGESET_NAME}-clusterimageset/${CLUSTERIMAGESET_NAME}.clusterimageset.yaml
+    cat $CLUSTERPOOLS_DIRECTORY/${CLUSTERIMAGESET_NAME}-clusterimageset/${CLUSTERIMAGESET_NAME}.clusterimageset.yaml
     printf "${CLEAR}\n"
-    oc apply -f ./${CLUSTERIMAGESET_NAME}-clusterimageset/${CLUSTERIMAGESET_NAME}.clusterimageset.yaml
+    oc apply -f $CLUSTERPOOLS_DIRECTORY/${CLUSTERIMAGESET_NAME}-clusterimageset/${CLUSTERIMAGESET_NAME}.clusterimageset.yaml
     if [[ "$?" -ne 0 ]]; then
         errorf "${RED}Failed to create ClusterImageSet $CLUSTERIMAGESET_NAME, see above error message for more detail.  This is likely a permissions issue - ClusterImageSets are a global cluster resource.${CLEAR}\n"
         exit 3
@@ -221,17 +224,17 @@ set_installconfig_skipmachinepools() {
 }
 
 generate_installconfigsecret() {
-    CLUSTERPOOL_INSTALL_CONFIG_FILE=./$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+    CLUSTERPOOL_INSTALL_CONFIG_FILE=$CLUSTERPOOLS_DIRECTORY/$CLUSTERPOOL_NAME/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
     printf "${BLUE}- Copying a template for ${PLATFORM} to working directory.${CLEAR}\n"
-    if [[ ! -d ./${CLUSTERPOOL_NAME} ]]; then
-        mkdir ./${CLUSTERPOOL_NAME}
+    if [[ ! -d $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME} ]]; then
+        mkdir $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}
     fi
     # Copy templates
     if [[ "$PLATFORM" == "AWS" ]]; then
-        sed -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" ./templates/install-config.aws.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
+        sed -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" $CLUSTERPOOLS_DIRECTORY/templates/install-config.aws.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
     elif [[ "$PLATFORM" == "AZURE" ]]; then
         sed -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" \
-            -e "s/__CLUSTERPOOL_BASE_DOMAIN_RESOURCE_GROUP_NAME__/$CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME/g" ./templates/install-config.azure.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
+            -e "s/__CLUSTERPOOL_BASE_DOMAIN_RESOURCE_GROUP_NAME__/$CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME/g" $CLUSTERPOOLS_DIRECTORY/templates/install-config.azure.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
     elif [[ "$PLATFORM" == "GCP" ]]; then
         printf "${BLUE}- note: to skip this step in the future, export CLUSTERPOOL_GCP_PROJECT_ID${CLEAR}\n"
         printf "${YELLOW}Enter the project ID of your project on GCP.  This can be found in your GCP json key or under the projects list in the GCP UI:${CLEAR} "
@@ -241,7 +244,7 @@ generate_installconfigsecret() {
             exit 1
         fi
         sed -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" \
-            -e "s/__CLUSTERPOOL_GCP_PROJECT_ID__/$CLUSTERPOOL_GCP_PROJECT_ID/g" ./templates/install-config.gcp.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
+            -e "s/__CLUSTERPOOL_GCP_PROJECT_ID__/$CLUSTERPOOL_GCP_PROJECT_ID/g" $CLUSTERPOOLS_DIRECTORY/templates/install-config.gcp.yaml.template > $CLUSTERPOOL_INSTALL_CONFIG_FILE
     fi
     # Have the user interactively edit our install-config template to their liking
     ${EDITOR:-vi} "$CLUSTERPOOL_INSTALL_CONFIG_FILE"
@@ -658,7 +661,7 @@ if [[ "$YQ_INSTALLED" != "false" ]]; then
                     read selection
                     if [ "$selection" -lt "$i" ]; then
                         CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME=${secret_names[$(($selection-1))]}
-                        CLUSTERPOOL_INSTALL_CONFIG_FILE=./$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
+                        CLUSTERPOOL_INSTALL_CONFIG_FILE=$CLUSTERPOOLS_DIRECTORY/$CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME.yaml
                         oc get secret -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_INSTALL_CONFIG_SECRET_NAME -o json | jq -r '.data["install-config.yaml"]' | ${BASE64} --decode > $CLUSTERPOOL_INSTALL_CONFIG_FILE
                         validate_installconfig_region
                         set_installconfig_skipmachinepools
@@ -675,7 +678,7 @@ if [[ "$YQ_INSTALLED" != "false" ]]; then
             fi
         else
             CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME=$CLUSTERPOOL_INSTALL_CONFIG_SECRET
-            CLUSTERPOOL_INSTALL_CONFIG_FILE=./$CLUSTERPOOL_INSTALL_CONFIG_SECRET.yaml
+            CLUSTERPOOL_INSTALL_CONFIG_FILE=$CLUSTERPOOLS_DIRECTORY/$CLUSTERPOOL_INSTALL_CONFIG_SECRET.yaml
             oc get secret -n $CLUSTERPOOL_TARGET_NAMESPACE $CLUSTERPOOL_INSTALL_CONFIG_SECRET -o json | jq -r '.data["install-config.yaml"]' | ${BASE64} -d > $CLUSTERPOOL_INSTALL_CONFIG_FILE
             cat $CLUSTERPOOL_INSTALL_CONFIG_FILE
             validate_installconfig_region
@@ -747,8 +750,8 @@ fi
 
 
 #-----BUILD THE CLUSTERPOOL YAML-----#
-if [[ ! -d ./${CLUSTERPOOL_NAME} ]]; then
-    mkdir ./${CLUSTERPOOL_NAME}
+if [[ ! -d $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME} ]]; then
+    mkdir $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}
 fi
 if [[ "$PLATFORM" == "AWS" ]]; then
     ${SED} -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" \
@@ -758,7 +761,7 @@ if [[ "$PLATFORM" == "AWS" ]]; then
            -e "s/__CLUSTERPOOL_SIZE__/$CLUSTERPOOL_SIZE/g" \
            -e "s/__OCP_PULL_SECRET__/$OCP_PULL_SECRET/g" \
            -e "s/__CLOUD_CREDENTIAL_SECRET__/$CLOUD_CREDENTIAL_SECRET/g" \
-           -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" ./templates/clusterpool.aws.yaml.template > ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+           -e "s/__CLUSTERPOOL_AWS_REGION__/$CLUSTERPOOL_AWS_REGION/g" $CLUSTERPOOLS_DIRECTORY/templates/clusterpool.aws.yaml.template > $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 elif [[ "$PLATFORM" == "AZURE" ]]; then
     ${SED} -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" \
            -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
@@ -768,7 +771,7 @@ elif [[ "$PLATFORM" == "AZURE" ]]; then
            -e "s/__OCP_PULL_SECRET__/$OCP_PULL_SECRET/g" \
            -e "s/__CLOUD_CREDENTIAL_SECRET__/$CLOUD_CREDENTIAL_SECRET/g" \
            -e "s/__CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME__/$CLUSTERPOOL_AZURE_BASE_DOMAIN_RESOURCE_GROUP_NAME/g" \
-           -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" ./templates/clusterpool.azure.yaml.template > ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+           -e "s/__CLUSTERPOOL_AZURE_REGION__/$CLUSTERPOOL_AZURE_REGION/g" $CLUSTERPOOLS_DIRECTORY/templates/clusterpool.azure.yaml.template > $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 elif [[ "$PLATFORM" == "GCP" ]]; then
     ${SED} -e "s/__CLUSTERPOOL_NAME__/$CLUSTERPOOL_NAME/g" \
            -e "s/__CLUSTERPOOL_TARGET_NAMESPACE__/$CLUSTERPOOL_TARGET_NAMESPACE/g" \
@@ -777,41 +780,41 @@ elif [[ "$PLATFORM" == "GCP" ]]; then
            -e "s/__CLUSTERPOOL_SIZE__/$CLUSTERPOOL_SIZE/g" \
            -e "s/__OCP_PULL_SECRET__/$OCP_PULL_SECRET/g" \
            -e "s/__CLOUD_CREDENTIAL_SECRET__/$CLOUD_CREDENTIAL_SECRET/g" \
-           -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" ./templates/clusterpool.gcp.yaml.template > ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+           -e "s/__CLUSTERPOOL_GCP_REGION__/$CLUSTERPOOL_GCP_REGION/g" $CLUSTERPOOLS_DIRECTORY/templates/clusterpool.gcp.yaml.template > $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 else
     errorf "${RED}Unsupported platform ${PLATFORM} detected, secret creation wizard only supports AWS, AZURE, and GCP.  Exiting.${CLEAR}"
     exit 3
 fi
 # Add an install config secret if created
 if [[ "$CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME" ]]; then
-    echo "" >> ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
-    ${SED} -e "s/__CLUSTERPOOL_INSTALL_CONFIG_SECRET_REF__/$CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME/g" ./templates/clusterpool.installConfigSecretRef.yaml.template >> ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    echo "" >> $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    ${SED} -e "s/__CLUSTERPOOL_INSTALL_CONFIG_SECRET_REF__/$CLUSTERPOOL_INTERNAL_INSTALL_CONFIG_SECRET_NAME/g" $CLUSTERPOOLS_DIRECTORY/templates/clusterpool.installConfigSecretRef.yaml.template >> $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 fi
 # set spec.skipMachinePools
 if [[ "$CLUSTERPOOL_SKIP_MACHINEPOOL" == "true" ]]; then
-    printf "\n  skipMachinePools: True" >> ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    printf "\n  skipMachinePools: True" >> $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 fi
 # add a ManagedClusterSet if specified
 if [[ "$MANAGEDCLUSTERSET_NAME" ]]; then
-    MANAGEDCLUSTERSET_NAME=$MANAGEDCLUSTERSET_NAME yq e '.metadata.labels["cluster.open-cluster-management.io/clusterset"] = env(MANAGEDCLUSTERSET_NAME)' -i ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    MANAGEDCLUSTERSET_NAME=$MANAGEDCLUSTERSET_NAME yq e '.metadata.labels["cluster.open-cluster-management.io/clusterset"] = env(MANAGEDCLUSTERSET_NAME)' -i $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 fi
 
 
 #-----END CLUSTERPOOL PROCESS EARLY IF THIS IS A DRY RUN-----#
 if [[ "$CLUSTERPOOL_DRY_RUN" == "true" ]]; then
     printf "${GREEN}'--dry-run' set, skipping pool creation.  You can find your pool yaml in $(pwd)/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml or as printed below.${CLEAR}\n"
-    cat ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+    cat $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
     echo ""
     exit 0
 fi
 
 
 #-----APPLY THE CLUSTERPOOL YAML-----#
-printf "${GREEN} Applying the following yaml to create your ClusterPool (./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml):\n${CLEAR}"
+printf "${GREEN} Applying the following yaml to create your ClusterPool ($CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml):\n${CLEAR}"
 printf "${BLUE}"
-cat ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+cat $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 printf "${CLEAR}\n"
-oc apply -f ./${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
+oc apply -f $CLUSTERPOOLS_DIRECTORY/${CLUSTERPOOL_NAME}/${CLUSTERPOOL_NAME}.clusterpool.yaml
 if [[ "$?" -ne 0 ]]; then
     errorf "${RED}Failed to create ClusterPool $CLUSTERPOOL_NAME, see above error message for more detail.${CLEAR}\n"
     exit 3
