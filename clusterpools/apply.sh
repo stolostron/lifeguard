@@ -130,7 +130,7 @@ generate_gcp_secret() {
 }
 
 generate_openshift_pull_secret() {
-    OCP_PULL_SECRET=${OCP_PULL_SECRET:-CLUSTERPOOLS_DIRECTORY/pull-secret.txt}
+    OCP_PULL_SECRET=${OCP_PULL_SECRET:-"$CLUSTERPOOLS_DIRECTORY/pull-secret.txt"}
     if [[ -f $OCP_PULL_SECRET ]]; then
         printf "${YELLOW}Do you want to use the pull secret stored in $OCP_PULL_SECRET (Y/N)?${CLEAR} "
         read selection
